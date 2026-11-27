@@ -1,0 +1,6 @@
+# Largest prompt-free YOLOE (26x) at confidence 0.15: 28/31 office_0 objects
+# detected in at least one frame vs 25/31 for 26s at 0.25
+# (results/detector_recall/office_0/report.json).
+detection:
+  weights: "/home/ravindu/SceneGraphNav/external/Scene-Graph-Generation/yoloe-26x-seg-pf.pt"
+  conf_thresh: 0.15

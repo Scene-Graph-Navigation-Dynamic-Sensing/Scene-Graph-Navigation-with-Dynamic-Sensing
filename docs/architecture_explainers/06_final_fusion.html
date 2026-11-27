@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Final Fusion and Clean-up</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <span class="stage-tag">stages 6 (end of video) · 6b</span>
+  <h1>Final fusion and clean-up</h1>
+  <p class="lede">When the video ends, the map holds one object per committed group of tracks — but some real objects are still
+    split in two, some voxels are claimed twice, and big flat pieces of floor have become "objects". A fixed sequence of passes
+    tidies this up before anything is named.</p>
+
+  <h2>Step through the passes</h2>
+  <p>A top-down toy map. Each pass changes it the way the real pass would.</p>
+  <div class="controls"><button class="btn" id="back">◀ Back</button><button class="btn primary" id="fwd">Next pass ▶</button><span class="pill" id="pname"></span></div>
+  <div class="grid2">
+    <canvas id="map"></canvas>
+    <div><p id="pinfo"></p><div class="kv" id="pkv"></div></div>
+  </div>
+
+  <h2>Try it: would clean-up drop this as floor?</h2>
+  <p><code>drop_structural_instances</code>: the graph already has a floor root, so a large, thin object lying at floor height is a piece of floor, not furniture. The docstring names floor, rug and parquet: a flat rug is dropped by this rule too.</p>
+  <div class="grid2">
+    <div class="controls" style="flex-direction:column;align-items:flex-start">
+      <label>Bounding-box floor area (x · y) <span class="v" data-for="area"></span><input type="range" id="area" min="0.1" max="4" step="0.05" value="1.6"></label>
+      <label>Thickness (height range) <span class="v" data-for="thick"></span><input type="range" id="thick" min="0.01" max="0.8" step="0.01" value="0.05"></label>
+      <label>Lowest point above the floor <span class="v" data-for="low"></span><input type="range" id="low" min="0" max="1.2" step="0.01" value="0.02"></label>
+    </div>
+    <div class="card" style="margin:0" id="dropres"></div>
+  </div>
+
+  <h2>Try it: fragment merge</h2>
+  <p><code>merge_fragmented_instances</code>: when views barely overlap, one object can be fused into two. The smaller merges into the larger only if all three hold.</p>
+  <div class="grid2">
+    <div class="controls" style="flex-direction:column;align-items:flex-start">
+      <label>Share of the small one's points within 5 cm of the large one <span class="v" data-for="cont"></span><input type="range" id="cont" min="0" max="1" step="0.01" value="0.62"></label>
+      <label>Embedding cosine <span class="v" data-for="fcos"></span><input type="range" id="fcos" min="0.4" max="1" step="0.01" value="0.81"></label>
+      <label style="flex-direction:row;gap:8px;align-items:center"><input type="checkbox" id="conf"> both have a confident (≥ 0.3) track-end name, and they differ</label>
+    </div>
+    <div class="card" style="margin:0" id="fragres"></div>
+  </div>
+  <p class="muted">Points, not boxes: a desk's box contains everything standing on it. With a box test and cosine 0.55, a real capture merged a laptop,
+    bottle, backpack, monitor, wallet and box into one "mac".</p>
+
+  <div class="where"><b>In the code:</b> end of video: object_fusion/instance_fusion.py (<code>finish</code>, <code>_rematch</code>) and DoVSG's
+    <code>get_instances</code> passes (DBSCAN, <code>merge_objects</code>, <code>indexes_align_objects</code>) ·
+    clean-up: object_fusion/postprocess.py (<code>drop_structural_instances</code>, <code>merge_fragmented_instances</code>,
+    <code>find_support_surfaces</code>) · called from scripts/run_static_scene_graph.py <code>build_graph_from_objects</code>.
+    Optional (tested, off by default): track rejection at commit (<code>object_fusion.track_validation</code>: thing/stuff probe, thin-plane test).</div>
+</main>
+<script src="common.js"></script>
+<script>
+  // ── pass-by-pass toy map (top-down, metres → px) ──
+  const PASSES = [
+    ["Map when the video ends", "Every track has been committed. Problems remain: a sofa in two halves, a cushion fragment, overlapping voxels between a table and a laptop, a floor slab, and a few objects seen once.",
+      [["Objects", "9"]]],
+    ["1 · Commit open tracks", "Tracks still pending at the last frame are committed with the same rule as during the video (score ≥ 0.55, containment ≥ 0.3, cosine ≥ 0.75).",
+      [["Rule", "same as stage 6"]]],
+    ["2 · Re-match, smallest first", "Each object is compared again with all others, smallest first: early commits were made before later views existed. Here it only absorbs a fragment lying ≥ 70% inside its target (rematch_min_containment), so the sofa halves (each only partly inside the other) are left for the clean-up.",
+      [["Containment", "≥ 0.7"], ["Order", "smallest object first"]]],
+    ["3 · DBSCAN + minimum detections", "DBSCAN removes stray voxel clusters; objects seen in fewer than 2 detections are dropped (obj_min_detections: 2 on Replica, every 10th frame is used so small objects appear in few).",
+      [["obj_min_detections", "2"]]],
+    ["4 · Overlap merge", "DoVSG's merge_objects: objects that overlap heavily and look alike are merged once more.",
+      [["Source", "DoVSG get_instances"]]],
+    ["5 · Voxel ownership", "indexes_align_objects: a voxel claimed by two objects goes to one, so the laptop's voxels are no longer also part of the table.",
+      [["Result", "voxel sets disjoint"]]],
+    ["6b · Drop floor slabs", "Large (≥ 1 m²), thin (≤ 20 cm) instances within 25 cm of the floor are removed: the floor is the graph's root already.",
+      [["Area", "≥ 1.0 m²"], ["Thickness", "≤ 0.2 m"], ["Floor band", "0.25 m"]]],
+    ["6b · Merge fragments", "The smaller sofa half has ≥ 50% of its points within 5 cm of the larger, cosine ≥ 0.75, and no conflicting confident names → merged.",
+      [["Containment", "≥ 0.5 (points, 5 cm)"], ["Cosine", "≥ 0.75"]]],
+    ["6b · Support surfaces", "A large flat instance whose top is 0.3–1.3 m high (a table or desk top) is marked as a support surface; NOVIC tends to name it after what stands on it, so naming later takes the first surface noun from its beam.",
+      [["Area", "≥ 0.8 m²"], ["Top height", "0.3–1.3 m"], ["Flat", "≥ 50% of points in its densest 10 cm slab"]]],
+  ];
+  let p = 0;
+  const mc = document.getElementById("map"); const MW = 460, MH = 320; let m = hidpi(mc, MW, MH);
+  function objs(step) {
+    const o = [
+      { n: "floor slab", r: [20, 230, 300, 300], kind: "bad", gone: step >= 6 },
+      { n: "sofa (half A)", r: [30, 30, 150, 110] },
+      { n: "sofa (half B)", r: [130, 30, 220, 110], gone: step >= 7, into: "sofa (half A)" },
+      { n: "cushion piece", r: [60, 45, 90, 70], gone: step >= 2, small: true },
+      { n: "table", r: [260, 120, 420, 220], surface: step >= 8 },
+      { n: "laptop", r: [300, 140, 360, 185], overlap: step < 5 },
+      { n: "chair", r: [330, 30, 400, 100] },
+      { n: "blip (1 det)", r: [200, 170, 214, 184], gone: step >= 3, small: true },
+      { n: "blip (1 det)", r: [420, 260, 432, 272], gone: step >= 3, small: true },
+    ];
+    if (step >= 7) o[1].r = [30, 30, 220, 110], o[1].n = "sofa";
+    return o;
+  }
+  function drawMap() {
+    m.fillStyle = cssv("--surface"); m.fillRect(0, 0, MW, MH);
+    for (const o of objs(p)) {
+      if (o.gone) continue;
+      const [x0, y0, x1, y1] = o.r;
+      m.fillStyle = o.kind === "bad" ? cssv("--bad-soft") : o.surface ? cssv("--warn-soft") : cssv("--accent-soft");
+      m.strokeStyle = o.kind === "bad" ? cssv("--bad") : o.surface ? cssv("--warn") : cssv("--accent");
+      m.fillRect(x0, y0, x1 - x0, y1 - y0); m.strokeRect(x0, y0, x1 - x0, y1 - y0);
+      if (o.overlap) { m.fillStyle = cssv("--bad"); m.globalAlpha = 0.35; m.fillRect(300, 140, 60, 45); m.globalAlpha = 1; }
+      m.fillStyle = cssv("--ink"); m.font = "12px system-ui"; m.fillText(o.n + (o.surface ? " (support surface)" : ""), x0 + 4, y0 + 14);
+    }
+    const left = objs(p).filter((o) => !o.gone).length;
+    m.fillStyle = cssv("--ink-3"); m.font = "11px system-ui"; m.fillText(`${left} objects`, 8, MH - 8);
+    document.getElementById("pname").textContent = PASSES[p][0];
+    document.getElementById("pinfo").textContent = PASSES[p][1];
+    document.getElementById("pkv").innerHTML = PASSES[p][2].map(([k, v]) => `<div>${k}</div><div>${v}</div>`).join("");
+  }
+  document.getElementById("fwd").onclick = () => { p = Math.min(PASSES.length - 1, p + 1); drawMap(); };
+  document.getElementById("back").onclick = () => { p = Math.max(0, p - 1); drawMap(); };
+  drawMap();
+
+  // ── calculators ──
+  function dropCheck() {
+    const a = +area.value, t = +thick.value, l = +low.value;
+    const g = [[`area ${a.toFixed(2)} m² ≥ 1.0`, a >= 1.0], [`thickness ${t.toFixed(2)} m ≤ 0.2`, t <= 0.2], [`lowest point ${l.toFixed(2)} m within the 0.25 m floor band`, l <= 0.25]];
+    const drop = g.every((x) => x[1]);
+    document.getElementById("dropres").innerHTML = g.map(([s, ok]) => `<div>${ok ? "✓" : "✗"} ${s}</div>`).join("") +
+      `<p><span class="verdict ${drop ? "bad" : "good"}">${drop ? "dropped as floor" : "kept"}</span></p>` +
+      `<p class="muted">${!drop && t > 0.2 && a >= 1 ? "Thick enough to be furniture (a bed, a sofa)." : !drop && l > 0.25 ? "Raised: if its top is 0.3–1.3 m it may be a table top (support surface)." : ""}</p>`;
+  }
+  const area = document.getElementById("area"), thick = document.getElementById("thick"), low = document.getElementById("low");
+  slider("area", dropCheck, (v) => `${v.toFixed(2)} m²`)(); slider("thick", dropCheck, (v) => `${v.toFixed(2)} m`)(); slider("low", dropCheck, (v) => `${v.toFixed(2)} m`)();
+  function fragCheck() {
+    const c = +document.getElementById("cont").value, s = +document.getElementById("fcos").value, k = document.getElementById("conf").checked;
+    const g = [[`containment ${c.toFixed(2)} ≥ 0.5`, c >= 0.5], [`cosine ${s.toFixed(2)} ≥ 0.75`, s >= 0.75], ["no conflicting confident names", !k]];
+    const ok = g.every((x) => x[1]);
+    document.getElementById("fragres").innerHTML = g.map(([t, v]) => `<div>${v ? "✓" : "✗"} ${t}</div>`).join("") +
+      `<p><span class="verdict ${ok ? "good" : "warn"}">${ok ? "merged into the larger object" : "kept separate"}</span></p>`;
+  }
+  slider("cont", fragCheck, (v) => v.toFixed(2))(); slider("fcos", fragCheck, (v) => v.toFixed(2))();
+  document.getElementById("conf").onchange = fragCheck;
+  window.addEventListener("themechange", drawMap);
+</script>
+</body>
+</html>

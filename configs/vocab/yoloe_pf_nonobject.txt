@@ -1,0 +1,1301 @@
+# prompt-free YOLOE tags that are not physical objects (scripts/build_yoloe_object_vocab.py)
+3D CG rendering
+CD
+Disneyland
+Empire State Building
+academy
+accident
+acrylic paint
+act
+action
+activity
+adaptation
+add
+adventure
+advertisement
+aerobics
+agriculture
+aid
+air field
+air line
+air sock
+aircraft cabin
+aisle
+alcove
+alp
+alphabet
+amber
+amethyst
+amusement park
+animation
+anime
+ankle
+anniversary
+antler
+apartment
+appearance
+applause
+aqua
+aquarium
+archery
+architecture
+area
+argument
+army
+arrest
+art exhibition
+art gallery
+art school
+art studio
+art vector illustration
+asia temple
+association
+atmosphere
+atrium
+attraction
+auction
+auditorium
+aurora
+auto show
+auto showroom
+automobile make
+autumn
+autumn leave
+award
+award ceremony
+back
+backyard
+badge
+badminton
+bakery
+baking
+balance
+ballet
+ballroom
+bank
+bank card
+bank vault
+banknote
+baptism
+bar code
+barber shop
+barn
+baseball game
+baseball team
+basketball court
+basketball game
+basketball team
+bathroom
+battle
+bazaar
+beach
+beach house
+beak
+beat
+beauty salon
+bedroom
+beer garden
+beer hall
+beige
+belly
+bike racing
+bikini top
+bill
+biology laboratory
+bird house
+birth
+birthday
+birthday card
+birthday party
+bite
+blessing
+blog
+blow
+blue sky
+board game
+boat deck
+boat house
+bone
+bonfire
+bookstore
+boost
+border
+boutique
+boutique hotel
+bowling
+boxing
+boxing ring
+bracket
+brain
+brake light
+brand
+break
+brick building
+bronze medal
+bubble
+building
+building facade
+bullfighting
+buoy
+burial chamber
+burn
+bus interior
+bus stop
+business
+business card
+business team
+butchers shop
+butte
+butterfly house
+buy
+cabin
+cabinetry
+cable car
+cafe
+calendar
+calligraphy
+calm
+camp
+campfire
+camping
+campsite
+campus
+candy store
+canyon
+capture
+car dealership
+car interior
+car logo
+car show
+car wash
+card game
+caribbean
+carnival
+carry
+cartoon character
+cartoon illustration
+cartoon style
+case
+casino
+cathedral
+catwalk show
+cave
+ceiling
+celebration
+ceremony
+certificate
+chalet
+chalk
+chamber
+championship
+chapel
+charge
+charity
+charity event
+check
+checkbook
+checklist
+cheer
+chemical compound
+chemistry
+chemistry lab
+chicken breast
+chicken coop
+chicken wing
+childs room
+chinese garden
+choir
+christmas
+christmas card
+christmas eve
+christmas market
+church
+cigar
+cigarette
+circle
+circus
+city
+city hall
+city skyline
+city square
+city view
+class
+classroom
+clavicle
+clean
+clean room
+clear
+cliff
+climb
+climb mountain
+clinic
+clothing store
+cloud
+clutch
+coast
+coffee shop
+coin
+collaboration
+collect
+color
+coloring material
+comedy
+comfort
+comic book character
+comic strip
+community
+company
+composition
+compost
+computer room
+concert
+concert hall
+condominium
+conference center
+confetti
+conflict
+confluence
+conservatory
+contest
+contract
+control
+convenience store
+convention
+conversation
+cooking
+coral reef
+corn field
+corner
+corral
+corridor
+cottage
+countdown
+counter top
+country house
+countryside
+couple
+course
+court
+courthouse
+courtyard
+crash
+crater lake
+credit card
+crescent
+crest
+crew
+cricket team
+crop top
+crossroad
+crosstalk
+crowd
+cruise
+crush
+cube
+cue
+cuisine
+cupid
+currency
+curve
+cycle
+cycling
+cyclone
+cylinder
+dairy
+damage
+damp
+dance floor
+dance room
+dark
+darkness
+dawn
+daylight
+death
+debate
+debris
+deity
+demolition
+demonstration
+den
+department store
+depression
+desert
+design
+destruction
+dew
+dining room
+dinner party
+diploma
+dirt
+dirt field
+disaster
+disco
+discotheque
+disease
+dive
+dog breed
+dog house
+dollar
+domicile
+dormitory
+dot
+downtown
+drag
+drama
+dressing room
+dribble
+drift
+driftwood
+drop
+drought
+duet
+dune
+dunk
+dusk
+dust
+dye
+ear
+earthquake
+easter
+eclipse
+ecosystem
+education
+electricity
+elevator car
+elevator lobby
+embassy
+emergency service
+emotion
+enamel
+enclosure
+energy
+engagement
+engine room
+engineering
+ensemble
+entertainment
+entrance hall
+erosion
+estate
+estuary
+evening
+evening sky
+event
+exercise
+exhibition
+explosion
+eye
+eye shadow
+facade
+face
+face powder
+factory workshop
+fair
+fairground
+fall
+family
+family room
+fang
+farm
+farmer market
+farmhouse
+fashion
+fashion illustration
+fashion look
+fashion show
+fastfood restaurant
+fault
+feather
+feeding
+fertilizer
+festival
+fiction
+field
+fight
+fill
+film format
+film premiere
+filming
+finish line
+fire
+fire department
+fire pit
+firecracker
+firework
+fish market
+fish pond
+fishbowl
+fishing
+fishing village
+fitness
+fitness course
+five
+fjord
+flame
+flare
+flash
+flavor
+flea market
+fleet
+float
+flock
+floor
+floor plan
+flow
+flower bed
+flower field
+flower market
+fluid
+flush
+fly fishing
+foam
+fog
+folk dance
+food court
+foot
+football college game
+football field
+football game
+football team
+footprint
+forbidden city
+forehead
+forest fire
+forge
+form
+formal garden
+formation
+formula 1
+freshener
+friendship
+frost
+fruit market
+fruits shop
+fuel
+fun
+funeral
+game
+gang
+garage
+garden
+gardening
+gas
+gathering
+gazebo
+general store
+gift
+gift card
+gift shop
+gift wrap
+gingerbread house
+give
+glacier
+glass building
+glass floor
+glass house
+glass wall
+glow
+go
+gobi
+gold
+gold medal
+golf
+gothic
+government
+government agency
+graduation
+grand prix
+granite
+graph
+grassland
+grave
+gravel
+graveyard
+graze
+grazing
+greeting
+greeting card
+grotto
+grove
+guest house
+guest room
+gulf
+habitat
+hair color
+half
+halloween
+hallway
+halter top
+hamburg
+handshake
+handstand
+handwriting
+hang
+happiness
+hardware store
+hardwood
+hardwood floor
+harvest
+hayfield
+headland
+hearing
+heart
+heat
+henna
+herd
+highland
+highlight
+hike
+hill country
+hillside
+hindu temple
+hip
+history
+hockey
+hockey game
+home
+home interior
+home office
+home theater
+homework
+honeymoon
+horizon
+horror
+horse farm
+horseback
+hospital
+hospital room
+hot spring
+hotel
+hotel lobby
+hotel room
+house
+house exterior
+huddle
+hug
+hunting lodge
+hurricane
+ice cave
+ice cream parlor
+ice floe
+ice hockey
+ice hockey team
+ice skating
+icicle
+identity card
+illustration
+incense
+independence day
+industrial area
+industry
+infantry
+infrastructure
+injection
+injury
+ink
+inn
+inscription
+interaction
+interior design
+intersection
+interview
+ivory
+jail cell
+japanese garden
+jazz
+jewelry shop
+job
+jog
+joint
+juggle
+jump
+jungle
+junkyard
+karaoke
+karate
+kasbah
+keycard
+kick
+kindergarden classroom
+kindergarten
+kitchen
+kitchen cabinet
+kitchen floor
+kitchen island
+kneel
+label
+laboratory
+labrador
+lagoon
+lake
+lake district
+lake house
+lakeshore
+landfill
+landing deck
+landmark
+landslide
+latex
+laugh
+launch event
+launch party
+laundromat
+laundry room
+lava
+lawn
+lawn wedding
+lay
+lead
+leak
+lean
+leather
+lecture room
+ledge
+leftover
+legend
+legislative chamber
+lens flare
+leprechaun
+lesson
+letter logo
+lettering
+level
+library
+license
+lick
+lift
+light show
+lightning
+lime
+limestone
+line
+lip balm
+liquid
+liquor store
+list
+living room
+living space
+loading dock
+lock chamber
+log
+log cabin
+logo
+loki
+lottery
+luxury
+magic
+mahjong
+make
+makeover
+management
+manicure
+manor house
+mansion
+manufactured home
+manufacturing
+manuscript
+marathon
+march
+marching band
+mark
+market
+market square
+market stall
+marriage
+massage
+mausoleum
+medal
+medicine
+medina
+meditation
+meet
+meeting
+meeting room
+mermaid
+metal
+midnight
+milestone
+milkshake
+mineral
+mission
+moisture
+monastery
+money
+moonlight
+morning
+morning fog
+mosque
+motel
+mountain
+mountain lake
+mountain pass
+mountain range
+mountain river
+mountain stream
+mountain view
+mountain village
+mouth
+mouthwash
+move
+movie ticket
+mr
+mud
+municipality
+music
+music festival
+music studio
+mythology
+narrow
+nativity scene
+navigation
+navy
+nebula
+neighbourhood
+neon
+nerve
+new year
+news
+news conference
+newsstand
+night
+night market
+night sky
+night view
+nightclub
+nose
+notepad
+notepaper
+notice
+number
+nursery
+nursing home
+oast house
+obstacle course
+offer
+office
+office building
+office cubicle
+office supply
+oil
+olive oil
+opal
+open
+opening
+opening ceremony
+opera
+opera house
+operating room
+operation
+optical shop
+orangery
+orbit
+orchard
+orchestra pit
+order
+organization
+origami
+out
+outhouse
+outline
+oval
+paddock
+pagoda
+pain
+palace
+pantry
+parade
+paradise
+parchment
+parish
+parking
+parking garage
+parking lot
+parking sign
+parliament
+party
+pass
+passbook
+passport
+paste
+paw
+pay
+peace
+peak
+penalty kick
+penny
+performance
+personal care
+pet shop
+pharmacy
+phenomenon
+photography
+physics laboratory
+picnic area
+pint
+pipa
+pitch
+pizzeria
+placard
+place
+plantation
+planting
+plaster
+plastic
+plasticine
+plateau
+platinum
+play
+play badminton
+play pong
+play tennis
+playground
+playing card
+playing golf
+playing mahjong
+playpen
+playroom
+plaza
+plot
+podium
+poetry
+point
+poker card
+police
+pollution
+pond
+portrait session
+pose
+post office
+postcard
+pound
+powder
+power see
+practice
+prayer
+premiere
+prescription
+presentation
+press room
+printing
+prison
+profession
+profile
+prom
+proposal
+protest
+pull
+pulpit
+pulse
+purple
+push
+putt
+qr code
+quarter
+quartz
+quote
+race
+racket
+rain
+rainbow
+rainforest
+rapid
+ravine
+reading
+rear
+rear view
+receipt
+recipe
+recording studio
+recreation room
+rectangle
+recycling
+red flag
+redwood
+reflection
+register
+relief
+religion
+remove
+repair
+repair shop
+rescue
+research
+residence
+residential neighborhood
+resin
+resort
+resort town
+restaurant
+restaurant kitchen
+restaurant patio
+restroom
+retail
+retro
+rice field
+ridge
+riding
+rink
+riot
+ripple
+rise
+rise building
+river
+river bank
+river valley
+riverbed
+road sign
+road trip
+roadside
+rock band
+rock climbing
+rock concert
+rock face
+rock formation
+rodeo
+roll
+romance
+roof
+roof garden
+room
+rosary
+rosy cloud
+rubble
+rubik's cube
+rugby
+ruins
+run
+rust
+safari
+sailing
+sale
+salon
+salt lake
+salute
+sand bar
+sauna
+savanna
+scaffold
+scale
+scar
+scene
+school
+schoolhouse
+science
+scoop
+score
+scratch
+scroll
+scrub
+sea
+sea cave
+sea view
+seabed
+seaside resort
+season
+security
+see
+sell
+seminar
+sense
+server room
+service
+set
+shadow
+shampoo
+share
+shed
+sheet music
+shine
+shipyard
+shoal
+shoe shop
+shopfront
+shoreline
+show
+shrine
+siberia
+side
+sign
+signage
+signal
+signature
+silver
+silver medal
+singe
+sip
+sitting
+skating rink
+skeleton
+ski resort
+ski slope
+skull
+sky
+skyline
+skyscraper
+slalom
+sleep
+slice
+slope
+slum
+smell
+smile
+smoke
+snout
+snow mountain
+snowstorm
+soap
+soap bubble
+software
+solo
+solution
+song
+sound
+spa
+space
+span
+spark
+sparkle
+speech
+speech bubble
+speed limit
+speed limit sign
+spin
+spiral
+splash
+sport association
+sport team
+sports meet
+spread
+sprinkle
+squad
+square
+squat
+squeeze
+stab
+stable
+stack
+stage
+stain
+stainless steel
+stall
+stamp
+standing
+stare
+state school
+stationery
+steam
+sticker
+stir
+stomach
+stone building
+stone house
+stop
+stop at
+stop sign
+storage room
+storefront
+storm
+storm cloud
+straddle
+strait
+straw
+stream
+street corner
+street market
+street photography
+street scene
+street sign
+strike
+stroll
+studio
+stupa
+style
+submarine water
+suburb
+sugar cube
+suite
+summer
+summer evening
+summit
+sunflower field
+sunrise
+sunset
+sunshine
+supermarket
+surf
+surface
+surgery
+surround
+suspension
+swim
+swimming hole
+swirl
+symbol
+synagogue
+table tennis
+table tennis racket
+tae kwon do
+tai chi
+tail
+take
+takeoff
+talk
+tan
+taste
+tavern
+tea party
+tea plantation
+team presentation
+tear
+technology
+television room
+television studio
+temperature
+temple
+tennis
+tennis court
+tennis match
+terrace
+terrain
+terrarium
+territory
+test
+test match
+text message
+texture
+thanksgiving
+theater
+therapy
+thicket
+thing
+thinking
+throne room
+throw
+thunder
+thunderstorm
+ticket
+ticket booth
+tile flooring
+tile roof
+tile wall
+tomb
+toothpaste
+topiary garden
+tornado
+touch
+touchdown
+tour
+tourist attraction
+tournament
+town
+town square
+toyshop
+trade
+tradition
+traffic
+traffic congestion
+traffic jam
+traffic light
+traffic sign
+train interior
+training
+travel
+trial
+tribe
+tributary
+trick
+trio
+troop
+trophy
+tropic
+turn
+turquoise
+tusk
+tv drama
+tv genre
+tv show
+tv sitcom
+twilight
+twist
+unicorn
+university
+use
+utility room
+vacation
+valley
+vampire
+vanity
+variety
+vault
+vector cartoon illustration
+vegetable garden
+vegetable market
+vegetation
+vespa
+veterinarians office
+video game
+vigil
+village
+vineyard
+violence
+vision
+volcano
+volleyball court
+voyage
+waiting room
+walk
+walking
+wall
+wallpaper
+war
+warning sign
+wash
+waste
+water
+water drop
+water level
+water sport
+water surface
+watercolor illustration
+waterfall
+watermark overlay stamp
+wave
+wax
+weather
+wedding
+wedding couple
+wedding party
+wedding photography
+wedding reception
+weight scale
+western restaurant
+wet
+wheat field
+whisker
+white house
+wild
+wildfire
+wind
+wine cellar
+wine tasting
+winter
+winter morning
+winter scene
+winter storm
+wood floor
+wood wall
+work card
+workplace
+workshop
+worship
+wound
+wrapping paper
+wrestle
+wrinkle
+yard
+yellow
+yoga
+youth hostel
+yurt
+zen garden
+zip

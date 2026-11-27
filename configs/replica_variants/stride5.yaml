@@ -1,0 +1,4 @@
+# Every 5th NICE-SLAM frame (400 frames), as ConceptGraphs runs Replica. Read by
+# scripts/eval_replica_scene.py; the pipeline ignores this key.
+replica_eval:
+  stride: 5

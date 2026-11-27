@@ -1,0 +1,5 @@
+# Objects only merge when they also look alike (NOVIC cosine >= 0.75), so a
+# plug, switch or tablet flush against a wall or table is not absorbed on
+# geometric overlap alone. On office_0, 8 of 16 re-match merges had cosine < 0.75.
+object_fusion:
+  min_merge_cosine: 0.75

@@ -1,0 +1,17 @@
+# Discovery with DoVSG's own per-detection filters opened up as well. Without these,
+# detections YOLOE returns below 0.25 confidence are dropped again inside fusion
+# (InstanceProcess.mask_conf_threshold), so lowering detection.conf_thresh had no effect.
+#  - YOLOE-26x prompt-free, confidence 0.10, 640 px (1024 px added 1 object for 2x the time)
+#  - fusion keeps detections down to 0.10 confidence and masks up to 50% of the image
+#    (ConceptGraphs' max_bbox_area_ratio; DoVSG's 0.3 drops close-up sofas, tables, rugs)
+#  - objects seen in 2+ frames kept; low-confidence names kept as "unknown"
+detection:
+  weights: "/home/ravindu/SceneGraphNav/external/Scene-Graph-Generation/yoloe-26x-seg-pf.pt"
+  conf_thresh: 0.10
+  img_size: 640
+object_fusion:
+  mask_conf_threshold: 0.10
+  max_bbox_area_ratio: 0.5
+  obj_min_detections: 2
+label_mapper:
+  low_score_action: "unknown"

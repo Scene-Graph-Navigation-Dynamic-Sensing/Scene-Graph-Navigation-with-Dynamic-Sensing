@@ -1,0 +1,4 @@
+# Thing/stuff probe trained WITHOUT office_3 and office_4 (scripts/train_stuff_probe.py --folds) + non-Replica data
+object_fusion:
+  track_validation:
+    stuff_probe: {enabled: true, path: configs/stuff_probe/heldout_office_3_office_4.npz, threshold: 0.7187}

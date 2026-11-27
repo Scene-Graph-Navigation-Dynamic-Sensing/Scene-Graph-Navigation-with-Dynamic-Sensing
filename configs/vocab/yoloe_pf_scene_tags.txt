@@ -1,0 +1,423 @@
+# prompt-free YOLOE tags that name a place, room, building or surface (narrow label_vocab filter; scripts/build_yoloe_object_vocab.py)
+Disneyland
+Empire State Building
+air field
+aircraft cabin
+aisle
+alcove
+alp
+amusement park
+apartment
+aquarium
+architecture
+area
+art gallery
+art school
+art studio
+asia temple
+auditorium
+auto showroom
+backyard
+bakery
+ballroom
+bank
+bank vault
+barber shop
+barn
+basketball court
+bathroom
+bazaar
+beach
+beach house
+beat
+beauty salon
+bedroom
+beer garden
+beer hall
+bikini top
+biology laboratory
+bird house
+boat deck
+boat house
+bookstore
+border
+boutique
+boutique hotel
+boxing ring
+brick building
+building
+building facade
+burial chamber
+bus interior
+bus stop
+butchers shop
+butte
+butterfly house
+cabin
+cable car
+cafe
+camp
+campsite
+campus
+candy store
+canyon
+car interior
+caribbean
+casino
+cathedral
+cave
+ceiling
+chalet
+chamber
+chapel
+chemistry lab
+chicken coop
+childs room
+chinese garden
+city
+city hall
+city skyline
+classroom
+clean room
+cliff
+climb
+climb mountain
+clothing store
+coast
+coffee shop
+computer room
+concert hall
+condominium
+conference center
+confluence
+convenience store
+coral reef
+corn field
+corner
+corral
+corridor
+cottage
+counter top
+country house
+countryside
+courthouse
+courtyard
+crater lake
+crest
+crop top
+crossroad
+dairy
+dance floor
+dance room
+den
+department store
+desert
+dining room
+dirt field
+discotheque
+dive
+dog house
+domicile
+dormitory
+downtown
+dressing room
+dune
+elevator car
+elevator lobby
+embassy
+enclosure
+engine room
+entrance hall
+estuary
+facade
+factory workshop
+fairground
+family room
+farm
+farmhouse
+fastfood restaurant
+field
+finish line
+fire pit
+fish pond
+fjord
+flea market
+floor
+floor plan
+flower bed
+flower field
+food court
+football field
+forbidden city
+forge
+formal garden
+fruits shop
+garage
+garden
+gazebo
+general store
+gift shop
+gingerbread house
+glacier
+glass building
+glass floor
+glass house
+glass wall
+gobi
+grassland
+graveyard
+grotto
+guest house
+guest room
+gulf
+habitat
+hallway
+halter top
+hamburg
+hardware store
+hardwood floor
+hayfield
+headland
+highland
+hillside
+hindu temple
+home
+home interior
+home theater
+horizon
+horse farm
+hospital
+hospital room
+hot spring
+hotel
+hotel lobby
+hotel room
+house
+house exterior
+hunting lodge
+ice cave
+ice cream parlor
+ice floe
+industrial area
+inn
+interior design
+jail cell
+japanese garden
+jewelry shop
+jungle
+junkyard
+kasbah
+kindergarden classroom
+kitchen
+kitchen floor
+kitchen island
+laboratory
+labrador
+lagoon
+lake
+lake district
+lake house
+lakeshore
+landfill
+landing deck
+landmark
+laundromat
+laundry room
+lawn
+leak
+lecture room
+ledge
+legislative chamber
+library
+liquor store
+living room
+loading dock
+lock chamber
+log cabin
+manor house
+mansion
+manufactured home
+market square
+market stall
+mausoleum
+medina
+meeting room
+monastery
+mosque
+motel
+mountain
+mountain lake
+mountain pass
+mountain range
+mountain river
+mountain stream
+municipality
+music studio
+narrow
+nativity scene
+neighbourhood
+newsstand
+nightclub
+nursery
+nursing home
+oast house
+office
+office building
+office cubicle
+open
+opening
+opera house
+operating room
+optical shop
+orangery
+orbit
+orchard
+orchestra pit
+outhouse
+outline
+paddock
+pagoda
+palace
+pantry
+paradise
+parking garage
+parking lot
+pet shop
+physics laboratory
+picnic area
+pizzeria
+place
+plaster
+plateau
+playground
+playpen
+playroom
+plaza
+podium
+pond
+power see
+press room
+prison
+pulpit
+rapid
+ravine
+recording studio
+recreation room
+repair shop
+residence
+residential neighborhood
+resort
+resort town
+restaurant
+restaurant kitchen
+restaurant patio
+restroom
+rice field
+ridge
+rink
+rise building
+river
+river bank
+river valley
+riverbed
+roadside
+roof
+roof garden
+room
+salon
+salt lake
+sand bar
+sauna
+savanna
+scaffold
+scene
+schoolhouse
+sea
+sea cave
+seabed
+seaside resort
+see
+server room
+shed
+shipyard
+shoal
+shoe shop
+shopfront
+shoreline
+shrine
+siberia
+side
+skating rink
+ski resort
+ski slope
+skyline
+skyscraper
+slope
+slum
+snow mountain
+spa
+stable
+stall
+stone building
+stone house
+storage room
+storefront
+strait
+stream
+street corner
+street scene
+studio
+stupa
+suburb
+sunflower field
+supermarket
+surface
+surround
+swimming hole
+synagogue
+tavern
+television room
+television studio
+temple
+tennis court
+terrace
+terrain
+terrarium
+territory
+theater
+throne room
+ticket booth
+tile flooring
+tile roof
+tile wall
+tomb
+topiary garden
+town
+toyshop
+train interior
+tributary
+tropic
+utility room
+valley
+vault
+vegetable garden
+veterinarians office
+vineyard
+volcano
+volleyball court
+waiting room
+wall
+wallpaper
+water surface
+waterfall
+western restaurant
+wheat field
+wine cellar
+winter scene
+wood floor
+wood wall
+workplace
+workshop
+youth hostel
+yurt
+zen garden

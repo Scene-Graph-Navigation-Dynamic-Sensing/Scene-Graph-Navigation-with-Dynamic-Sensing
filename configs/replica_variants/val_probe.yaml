@@ -1,0 +1,5 @@
+# Test 5: thing/stuff probe at track commit, trained on the 6 held-out scenes' nodes (scripts/train_stuff_probe.py);
+# threshold = at most 2% of training things rejected.
+object_fusion:
+  track_validation:
+    stuff_probe: {enabled: true, path: configs/stuff_probe_replica.npz, threshold: 0.595}

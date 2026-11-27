@@ -1,0 +1,4 @@
+# Step 5: same-name adjacency merge at stage 7: same name + touching (3 cm) + embedding cosine >= 0.8 + >= 20% of the
+# smaller one's points within 3 cm of the larger -> one object (object_fusion/postprocess.merge_same_name_neighbours).
+label_mapper:
+  same_name_merge: {enabled: true, gap_m: 0.03, similarity: 0.8, containment: 0.2}

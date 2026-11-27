@@ -1,0 +1,245 @@
+chair
+armchair
+stool
+bench
+sofa
+ottoman
+footstool
+rocking chair
+folding chair
+highchair
+table
+desk
+coffee table
+dining table
+side table
+nightstand
+counter
+countertop
+workbench
+bed
+bunk bed
+crib
+mattress
+pillow
+cushion
+blanket
+duvet
+quilt
+bedspread
+shelf
+bookshelf
+bookcase
+cabinet
+cupboard
+wardrobe
+closet
+dresser
+drawer
+chest of drawers
+sideboard
+filing cabinet
+locker
+rack
+coat rack
+door
+window
+curtain
+blind
+rug
+carpet
+doormat
+lamp
+floor lamp
+desk lamp
+chandelier
+light bulb
+light switch
+extension cord
+mirror
+picture frame
+painting
+poster
+clock
+wall clock
+calendar
+whiteboard
+blackboard
+bulletin board
+sign
+plant
+potted plant
+flowerpot
+vase
+flower
+bouquet
+flower arrangement
+basket
+wicker basket
+laptop
+laptop computer
+computer
+desktop computer
+monitor
+computer monitor
+screen
+television
+keyboard
+computer keyboard
+computer mouse
+mousepad
+printer
+scanner
+projector
+speaker
+loudspeaker
+headphone
+headset
+earphone
+microphone
+webcam
+router
+modem
+phone
+mobile phone
+telephone
+tablet
+charger
+cable
+remote control
+camera
+book
+notebook
+magazine
+newspaper
+paper
+folder
+binder
+envelope
+document
+pen
+pencil
+marker
+eraser
+ruler
+scissors
+stapler
+calculator
+bag
+backpack
+handbag
+purse
+suitcase
+briefcase
+tote bag
+shopping bag
+paper bag
+plastic bag
+wallet
+key
+eye glasses
+sunglass
+watch
+wristwatch
+umbrella
+hat
+cap
+helmet
+shoe
+sneaker
+boot
+sandal
+slipper
+flip flop
+sock
+jacket
+coat
+shirt
+sweater
+towel
+bottle
+water bottle
+bottled water
+cup
+mug
+glass
+wine glass
+jug
+pitcher
+creamer
+teapot
+kettle
+thermos
+plate
+bowl
+dish
+spoon
+fork
+knife
+tray
+container
+jar
+can
+refrigerator
+microwave
+oven
+stove
+toaster
+coffee maker
+blender
+dishwasher
+sink
+faucet
+washing machine
+dryer
+iron
+vacuum cleaner
+broom
+mop
+bucket
+trash can
+garbage can
+wastebasket
+recycling bin
+toilet
+bathtub
+shower
+soap dispenser
+toothbrush
+toilet paper
+rubik's cube
+box
+cardboard box
+shoebox
+crate
+storage box
+bin
+carton
+package
+parcel
+fan
+heater
+air conditioner
+radiator
+thermostat
+toy
+teddy bear
+doll
+ball
+tissue box
+napkin
+candle
+forklift
+hand truck
+ladder
+trolley
+cart
+fire extinguisher
+first aid kit
+toolbox
+drill
+hammer
+screwdriver
+guitar
+piano
+person

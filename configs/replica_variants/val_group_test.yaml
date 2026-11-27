@@ -1,0 +1,5 @@
+# Test 2: group test before the tracker: >= 2 smaller detections inside the mask AND (their masks cover >= 60% of
+# it OR it is >= 2 large disconnected blobs). Replaces the 30%-of-image size rule.
+detection:
+  validation:
+    group_test: {enabled: true, min_children: 2, child_coverage: 0.6, fragment_min_frac: 0.15, containment: 0.85}

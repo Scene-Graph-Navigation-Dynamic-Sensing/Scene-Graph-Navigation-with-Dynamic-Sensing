@@ -1,0 +1,12 @@
+# Step 3: panoptic segments + YOLOE's SMALL masks (<= 2% of the frame) that do not lie on a panoptic thing, to recover
+# the fixtures and small items panoptic misses. Only the YOLOE masks go through label_stuff / border_stuff / group_test.
+detection:
+  backend: panoptic
+  panoptic:
+    model: facebook/mask2former-swin-large-ade-panoptic
+    threshold: 0.5
+    yoloe_union: {enabled: true, max_area_frac: 0.02, max_thing_overlap: 0.5}
+  validation:
+    border_stuff: {enabled: true, min_borders: 2, min_area_frac: 0.15}
+    label_stuff: {enabled: true}
+    group_test: {enabled: true, min_children: 2, child_coverage: 0.6, fragment_min_frac: 0.15, containment: 0.85}

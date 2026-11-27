@@ -1,0 +1,6 @@
+# Test 3: stuff tests before the tracker: a mask covering >= 15% of the frame and touching >= 2 image borders,
+# or prompt-free YOLOE's own class being a surface / place label (wall, floor, ceiling, ... room).
+detection:
+  validation:
+    border_stuff: {enabled: true, min_borders: 2, min_area_frac: 0.15}
+    label_stuff: {enabled: true}

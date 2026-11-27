@@ -1,0 +1,323 @@
+{
+ "office_0+room_0": {
+  "replica_only": {
+   "threshold": 0.594976007938385,
+   "test": {
+    "nodes": 94,
+    "stuff": 25,
+    "stuff_rejected": 10,
+    "things": 69,
+    "things_rejected": 1,
+    "things_rejected_list": [
+     "office_0:blinds(door)"
+    ]
+   },
+   "extra": {
+    "nodes": 1467,
+    "stuff": 378,
+    "stuff_rejected": 97,
+    "things": 1089,
+    "things_rejected": 36,
+    "things_rejected_list": [
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()"
+    ]
+   }
+  },
+  "replica+extra": {
+   "threshold": 0.7276833057403564,
+   "test": {
+    "nodes": 94,
+    "stuff": 25,
+    "stuff_rejected": 9,
+    "things": 69,
+    "things_rejected": 0,
+    "things_rejected_list": []
+   }
+  }
+ },
+ "office_1+room_1": {
+  "replica_only": {
+   "threshold": 0.5954838395118713,
+   "test": {
+    "nodes": 59,
+    "stuff": 13,
+    "stuff_rejected": 8,
+    "things": 46,
+    "things_rejected": 2,
+    "things_rejected_list": [
+     "room_1:door(door)",
+     "room_1:blinds(blind)"
+    ]
+   },
+   "extra": {
+    "nodes": 1467,
+    "stuff": 378,
+    "stuff_rejected": 123,
+    "things": 1089,
+    "things_rejected": 77,
+    "things_rejected_list": [
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()"
+    ]
+   }
+  },
+  "replica+extra": {
+   "threshold": 0.7237937450408936,
+   "test": {
+    "nodes": 59,
+    "stuff": 13,
+    "stuff_rejected": 6,
+    "things": 46,
+    "things_rejected": 0,
+    "things_rejected_list": []
+   }
+  }
+ },
+ "office_2+room_2": {
+  "replica_only": {
+   "threshold": 0.6024625897407532,
+   "test": {
+    "nodes": 93,
+    "stuff": 22,
+    "stuff_rejected": 15,
+    "things": 71,
+    "things_rejected": 3,
+    "things_rejected_list": [
+     "office_2:lamp(lamp)",
+     "office_2:lamp(lamp)",
+     "office_2:tv screen(umbrella)"
+    ]
+   },
+   "extra": {
+    "nodes": 1467,
+    "stuff": 378,
+    "stuff_rejected": 97,
+    "things": 1089,
+    "things_rejected": 40,
+    "things_rejected_list": [
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()"
+    ]
+   }
+  },
+  "replica+extra": {
+   "threshold": 0.7357087135314941,
+   "test": {
+    "nodes": 93,
+    "stuff": 22,
+    "stuff_rejected": 11,
+    "things": 71,
+    "things_rejected": 0,
+    "things_rejected_list": []
+   }
+  }
+ },
+ "office_3+office_4": {
+  "replica_only": {
+   "threshold": 0.5997761487960815,
+   "test": {
+    "nodes": 103,
+    "stuff": 25,
+    "stuff_rejected": 17,
+    "things": 78,
+    "things_rejected": 1,
+    "things_rejected_list": [
+     "office_4:window(whiteboard)"
+    ]
+   },
+   "extra": {
+    "nodes": 1467,
+    "stuff": 378,
+    "stuff_rejected": 85,
+    "things": 1089,
+    "things_rejected": 25,
+    "things_rejected_list": [
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()",
+     "3rscan:()"
+    ]
+   }
+  },
+  "replica+extra": {
+   "threshold": 0.7187037467956543,
+   "test": {
+    "nodes": 103,
+    "stuff": 25,
+    "stuff_rejected": 12,
+    "things": 78,
+    "things_rejected": 0,
+    "things_rejected_list": []
+   }
+  }
+ }
+}

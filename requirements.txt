@@ -1,0 +1,27 @@
+# Static Open-Vocabulary Scene Graph Pipeline — dependencies.
+#
+# Most of these are already installed in the `scene_graph` conda env used to
+# run Scene-Graph-Generation (torch, ultralytics, open3d, transformers,
+# open_clip, opencv, numpy, faiss, scikit-learn) — this pipeline reuses that
+# code directly rather than duplicating it, so running inside that same env
+# is the easiest path. `unidecode` is the one confirmed gap (needed by
+# /home/ravindu/SceneGraphNav/external/novic/infer.py) — pip install it into
+# whichever env you run this pipeline in.
+
+torch
+ultralytics>=8.4          # YOLOE-seg-pf (perception/detection)
+open3d>=0.19               # voxel map, pose ICP fallback, instance visualization
+transformers>=4.57         # Depth Anything V3/V2
+open_clip_torch            # pulled in by NOVIC's embedder, not called directly here
+opencv-python
+numpy
+pyyaml
+matplotlib
+faiss-cpu                  # or faiss-gpu — used by DoVSG's instance_process.py
+scikit-learn                # DBSCAN / NearestNeighbors, used by DoVSG's instance_process.py
+pillow
+tqdm
+graphviz                    # scene graph PDF render (also needs the system `dot` binary)
+unidecode                   # required by NOVIC's infer.py, confirmed missing in `scene_graph` env
+pytest                      # for tests/
+google-genai                # Gemini client, task_planning/gemini_client.py

@@ -1,0 +1,8 @@
+# Option 2 (2026-10-15; the pipeline.yaml default since 2026-11-27): Mask2Former Swin-L ADE20K panoptic as the only detector. Boxes are the tight boxes of the
+# panoptic thing masks (perception/detection/panoptic_detector.py); stuff segments are dropped. No YOLOE union.
+detection:
+  backend: panoptic
+  panoptic:
+    model: facebook/mask2former-swin-large-ade-panoptic
+    threshold: 0.5
+    yoloe_union: {enabled: false}

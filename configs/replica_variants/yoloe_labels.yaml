@@ -1,0 +1,12 @@
+# Option 3 (2026-10-17): prompt-free YOLOE alone, using its own tags to keep only physical objects.
+# A detection whose YOLOE tag names a place, room, building or surface (configs/vocab/yoloe_pf_scene_tags.txt:
+# wall, floor, ceiling, playroom, office, ...; scripts/build_yoloe_object_vocab.py) is dropped before tracking; the tag is then discarded and the rest of the
+# pipeline (CLIP embeddings, fusion, held-out stuff probe, NOVIC naming) runs unchanged.
+# The other YOLOE checks (border_stuff, label_stuff, group_test) are off so only the label filter is tested.
+detection:
+  backend: yoloe_seg_pf
+  validation:
+    border_stuff: {enabled: false}
+    label_stuff: {enabled: false}
+    group_test: {enabled: false}
+    label_vocab: {enabled: true, nonobject_file: configs/vocab/yoloe_pf_scene_tags.txt}

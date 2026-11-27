@@ -1,0 +1,10 @@
+# All three fixes to how fusion combines objects (object_fusion/instance_fusion.py):
+#  - min_merge_cosine: objects must also look alike to merge (geometry alone can't force it)
+#  - rematch_min_containment: re-matching only absorbs fragments lying mostly inside their target,
+#    so large established objects stop snowballing into each other
+#  - track_split_cosine: a detection that looks clearly different from its BoT-SORT track so far
+#    starts a new track (the tracker can hand an id to another object between sparse frames)
+object_fusion:
+  min_merge_cosine: 0.75
+  rematch_min_containment: 0.7
+  track_split_cosine: 0.6

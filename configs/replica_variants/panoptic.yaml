@@ -1,0 +1,7 @@
+# Step 2: Mask2Former Swin-L ADE20K panoptic segments as the mask source (perception/detection/panoptic_detector.py),
+# BoT-SORT and the track-level fusion unchanged. Stuff segments (wall, floor, ceiling, ...) are dropped.
+detection:
+  backend: panoptic
+  panoptic:
+    model: facebook/mask2former-swin-large-ade-panoptic
+    threshold: 0.5

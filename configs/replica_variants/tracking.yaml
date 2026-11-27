@@ -1,0 +1,3 @@
+# BoT-SORT tuned for sparsely sampled frames (configs/trackers/botsort_sparse_frames.yaml).
+detection:
+  tracker: "configs/trackers/botsort_sparse_frames.yaml"

@@ -1,0 +1,6 @@
+# An object under 20% of a candidate's size only merges into it at NOVIC cosine >= 0.9
+# (a fragment of it), so plugs, switches and panels on wall nodes, or a tablet on a table,
+# stay separate objects.
+object_fusion:
+  small_merge_ratio: 0.2
+  small_merge_cosine: 0.9

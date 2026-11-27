@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Detection and Tracking</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .tabs { display: flex; gap: 6px; margin: 8px 0; flex-wrap: wrap; }
+  .tabs button.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .chk { display: flex; gap: 6px; align-items: center; font-size: 13.5px; }
+</style>
+</head>
+<body>
+<main>
+  <span class="stage-tag">stages 5 · 5a</span>
+  <h1>Detect, segment and track</h1>
+  <p class="lede">Every frame, prompt-free YOLOE outlines everything that might be an object — no class list is given, and its
+    own class guess is ignored. BoT-SORT then gives each outline a track id that stays the same while the object stays in view,
+    so later stages can treat "the same thing seen 15 times" as one unit.</p>
+
+  <div class="grid2">
+    <div class="card"><h3>YOLOE-26-seg-pf (prompt-free)</h3>
+      <div class="kv">
+        <div>Weights</div><div>yoloe-26x-seg-pf.pt (Replica) · 26s (video)</div>
+        <div>Input size</div><div>1024 px (Replica) · 640 px</div>
+        <div>Confidence</div><div>≥ 0.10 (Replica "discovery") · 0.25</div>
+        <div>NMS IoU</div><div>0.5</div>
+        <div>Output</div><div>box · mask · score · (class, unused)</div>
+      </div>
+      <p class="muted" style="margin-top:8px">Frames are converted RGB → BGR before YOLOE (<code>fix_channel_order</code>; runs before 2026-10-14 had red/blue swapped).</p></div>
+    <div class="card"><h3>BoT-SORT (Ultralytics botsort.yaml)</h3>
+      <div class="kv">
+        <div>track_high_thresh</div><div>0.25 · first-stage matching</div>
+        <div>track_low_thresh</div><div>0.10 · second stage, weak boxes</div>
+        <div>new_track_thresh</div><div>0.25 · weaker boxes never start a track</div>
+        <div>match_thresh</div><div>0.8 cost (≈ IoU ≥ 0.2 × score)</div>
+        <div>track_buffer</div><div>30 frames a lost track is kept</div>
+        <div>gmc_method</div><div>sparse optical flow (camera motion)</div>
+      </div></div>
+  </div>
+
+  <h2>What YOLOE actually returns (office_0)</h2>
+  <p>Outlines coloured by what they really cover (from the Replica ground truth): <b style="color:#28c828">green</b> one real object,
+    <b style="color:#e62828">red</b> wall / floor / ceiling, <b style="color:#ff9600">orange</b> a group of objects, grey unlabelled.</p>
+  <div class="tabs" id="tabs">
+    <button class="btn on" data-img="det_pf.jpg" data-cap="Prompt-free YOLOE: about 15 masks per frame, 65% on one real object, about 4 wall/floor pieces per frame.">YOLOE (current)</button>
+    <button class="btn" data-img="det_val.jpg" data-cap="With the detection validation checks: wall/floor labels and big border-touching masks dropped, group boxes dropped, nested masks made disjoint — 79% on one real object.">+ validation checks</button>
+    <button class="btn" data-img="det_panoptic.jpg" data-cap="Mask2Former ADE20K panoptic (alternative being tested): every pixel belongs to one segment, wall/floor/ceiling arrive labelled and are dropped — 93% on one real object, but small wall fixtures are missed.">Panoptic (test)</button>
+  </div>
+  <img class="fig" id="detimg" src="img/det_pf.jpg" alt="Detection overlays">
+  <p id="detcap" class="muted"></p>
+
+  <h2>Try it: how BoT-SORT keeps (and loses) an identity</h2>
+  <p>Three objects in a camera pan. Each frame: predict where every track's box should be (Kalman filter), match detections to
+    predictions by IoU, start new tracks from unmatched confident detections. Raise the frame gap to mimic sparse keyframes —
+    boxes jump too far, IoU drops to zero and the same object gets a new id.</p>
+  <div class="controls">
+    <label>Frames skipped between processed frames <span class="v" data-for="gap">1</span><input type="range" id="gap" min="1" max="12" value="1"></label>
+    <label>Detection confidence of the cup <span class="v" data-for="cconf">0.40</span><input type="range" id="cconf" min="0.05" max="0.9" step="0.05" value="0.4"></label>
+    <button class="btn primary" id="play">▶ Play</button><button class="btn" id="stepb">Step</button><button class="btn" id="reset">Reset</button>
+  </div>
+  <canvas id="trk"></canvas>
+  <div class="grid2" style="margin-top:10px">
+    <table class="t" id="trklog"></table>
+    <div class="muted" id="trknote">The bin is missed in a few frames (occluded): its track is kept "lost" for up to 30 frames and picks
+      the bin up again with the same id. A cup below 0.25 confidence can still continue an existing track (second stage) but can never start one.</div>
+  </div>
+
+  <h2>5a · Optional validation before the tracker</h2>
+  <p>Toggle the checks and see which of these detections reach BoT-SORT (a schematic frame).</p>
+  <div class="controls">
+    <span class="chk"><input type="checkbox" id="v_label" checked><label for="v_label">label_stuff</label></span>
+    <span class="chk"><input type="checkbox" id="v_border" checked><label for="v_border">border_stuff (≥ 15% of frame, touches ≥ 2 borders)</label></span>
+    <span class="chk"><input type="checkbox" id="v_group" checked><label for="v_group">group_test (children cover ≥ 60%)</label></span>
+  </div>
+  <canvas id="val"></canvas>
+  <table class="t" id="valtab" style="margin-top:10px"></table>
+
+  <div class="where"><b>In the code:</b> perception/detection/tracked_yoloe_detector.py (<code>TrackedYOLOEDetector.track</code>,
+    validation callback <code>_align_masks_and_boxes</code>) · perception/detection/detection_validation.py ·
+    perception/detection/panoptic_detector.py (test) · object_fusion/streaming.py runs it on the detection thread.
+    Config: <code>detection.*</code>, <code>detection.validation.*</code>.</div>
+</main>
+<script src="common.js"></script>
+<script>
+  // ── image tabs ──
+  const tabs = document.querySelectorAll("#tabs button");
+  function setTab(b) { tabs.forEach((x) => x.classList.toggle("on", x === b));
+    document.getElementById("detimg").src = "img/" + b.dataset.img; document.getElementById("detcap").textContent = b.dataset.cap; }
+  tabs.forEach((b) => b.onclick = () => setTab(b)); setTab(tabs[0]);
+
+  // ── tracker simulation (simplified BoT-SORT: constant-velocity prediction, greedy IoU matching, two stages) ──
+  const tc = document.getElementById("trk"); const TW = 720, TH = 240; let t = hidpi(tc, TW, TH);
+  const OBJ = [ { name: "chair", w: 120, h: 130, y: 70, x0: 640, conf: 0.8 },
+                { name: "bin", w: 60, h: 70, y: 140, x0: 820, conf: 0.7, hidden: [14, 15, 16, 17] },
+                { name: "cup", w: 32, h: 36, y: 110, x0: 980, conf: 0.4 } ];
+  const SPEED = 9;                                         // px per raw frame (camera pan)
+  let gap = 1, frame = 0, tracks = [], nextId = 1, log = [], timer = null;
+  const iou = (a, b) => { const ix = Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)),
+    iy = Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y)); const i = ix * iy; return i / (a.w * a.h + b.w * b.h - i); };
+  function dets(f) {
+    return OBJ.filter((o) => !(o.hidden || []).includes(f)).map((o) => ({ name: o.name, x: o.x0 - SPEED * f, y: o.y, w: o.w, h: o.h,
+      conf: o.name === "cup" ? parseFloat(document.getElementById("cconf").value) : o.conf })).filter((d) => d.x + d.w > 0 && d.x < TW);
+  }
+  function stepT() {
+    const D = dets(frame); const used = new Set(); const events = [];
+    for (const tr of tracks) { tr.pred = { x: tr.box.x + tr.vx * gap, y: tr.box.y, w: tr.box.w, h: tr.box.h }; tr.matched = false; }
+    for (const stage of [0.25, 0.10]) {                    // high-score detections first, then low ones
+      for (const tr of tracks.filter((x) => !x.matched && x.state !== "removed")) {
+        let best = -1, bi = -1;
+        D.forEach((d, i) => { if (used.has(i) || d.conf < stage || (stage === 0.1 && d.conf >= 0.25)) return;
+          const s = iou(tr.pred, d) * d.conf; if (s > best) { best = s; bi = i; } });
+        if (bi >= 0 && iou(tr.pred, D[bi]) >= 0.2) { const d = D[bi]; used.add(bi);
+          tr.vx = (d.x - tr.box.x) / Math.max(1, frame - tr.last); tr.box = d; tr.last = frame; tr.matched = true; tr.state = "tracked"; d.id = tr.id; }
+      }
+    }
+    D.forEach((d, i) => { if (used.has(i)) return;
+      if (d.conf >= 0.25) { const tr = { id: nextId++, box: d, vx: -SPEED, last: frame, state: "tracked", name: d.name, matched: true };
+        tracks.push(tr); d.id = tr.id; events.push(`new id ${tr.id} for the ${d.name}`); }
+      else events.push(`${d.name} (${d.conf.toFixed(2)}) unmatched: too weak to start a track`); });
+    for (const tr of tracks) if (!tr.matched && tr.state !== "removed") {
+      tr.state = frame - tr.last > 30 ? "removed" : "lost"; tr.box = { ...tr.box, x: tr.box.x + tr.vx * gap }; }
+    const ids = {}; for (const d of D) if (d.id) (ids[d.name] = ids[d.name] || new Set()).add(d.id);
+    log.unshift(`<tr><td class="mono">frame ${frame}</td><td>${D.map((d) => `${d.name}${d.id ? " → id " + d.id : " (no id)"}`).join(", ") || "–"}${events.length ? "<br><span class='muted'>" + events.join("; ") + "</span>" : ""}</td></tr>`);
+    log = log.slice(0, 6); drawT(D); frame += gap;
+    if (frame > 140) stop();
+  }
+  function drawT(D) {
+    t.fillStyle = cssv("--surface"); t.fillRect(0, 0, TW, TH);
+    for (const tr of tracks) if (tr.state === "lost") { t.setLineDash([4, 4]); t.strokeStyle = cssv("--ink-3"); t.strokeRect(tr.box.x, tr.box.y, tr.box.w, tr.box.h); t.setLineDash([]);
+      t.fillStyle = cssv("--ink-3"); t.font = "11px system-ui"; t.fillText(`id ${tr.id} lost`, tr.box.x, tr.box.y - 4); }
+    const palette = ["#2a78d6", "#eb6834", "#1baf7a", "#e87ba4", "#6250d6", "#eda100", "#008300", "#e34948"];
+    for (const d of D) { const col = d.id ? palette[(d.id - 1) % 8] : cssv("--ink-3");
+      t.strokeStyle = col; t.lineWidth = 2.5; t.strokeRect(d.x, d.y, d.w, d.h); t.lineWidth = 1;
+      t.fillStyle = col; t.font = "600 12px system-ui"; t.fillText(`${d.name} ${d.id ? "id " + d.id : "–"} (${d.conf.toFixed(2)})`, d.x, d.y - 5); }
+    t.fillStyle = cssv("--ink-3"); t.font = "11px system-ui"; t.fillText(`raw frame ${frame} · every ${gap} frame(s) processed`, 8, TH - 8);
+    document.getElementById("trklog").innerHTML = log.join("");
+  }
+  function reset() { stop(); frame = 0; tracks = []; nextId = 1; log = []; drawT(dets(0)); }
+  function stop() { clearInterval(timer); timer = null; document.getElementById("play").textContent = "▶ Play"; }
+  document.getElementById("play").onclick = () => { if (timer) return stop(); document.getElementById("play").textContent = "❚❚ Pause"; timer = setInterval(stepT, 260); };
+  document.getElementById("stepb").onclick = stepT; document.getElementById("reset").onclick = reset;
+  slider("gap", (v) => { gap = v; reset(); }, (v) => v)();
+  slider("cconf", () => reset(), (v) => v.toFixed(2))();
+
+  // ── validation schematic ──
+  const vc = document.getElementById("val"); const VW = 640, VH = 300; let v = hidpi(vc, VW, VH);
+  const VD = [
+    { n: "wall piece", label: "wall", box: [0, 0, 400, 150], area: 0.24, borders: 2, kids: 0, cover: 0, real: false },
+    { n: "floor piece", label: "hardwood floor", box: [0, 230, 640, 300], area: 0.19, borders: 3, kids: 0, cover: 0, real: false },
+    { n: "desk + things on it", label: "desk", box: [180, 120, 520, 260], area: 0.22, borders: 0, kids: 3, cover: 0.68, real: false },
+    { n: "laptop", label: "laptop", box: [230, 130, 330, 190], area: 0.03, borders: 0, kids: 0, cover: 0, real: true },
+    { n: "monitor", label: "monitor", box: [360, 125, 470, 200], area: 0.04, borders: 0, kids: 0, cover: 0, real: true },
+    { n: "mug", label: "mug", box: [480, 170, 510, 200], area: 0.005, borders: 0, kids: 0, cover: 0, real: true },
+    { n: "sofa", label: "sofa", box: [10, 150, 170, 280], area: 0.11, borders: 1, kids: 1, cover: 0.12, real: true },
+    { n: "living-room view", label: "living room", box: [0, 0, 640, 300], area: 0.9, borders: 4, kids: 6, cover: 0.4, real: false },
+  ];
+  function rule(d) {
+    if (document.getElementById("v_label").checked && (["wall", "floor", "ceiling", "hardwood floor"].includes(d.label) || d.label.endsWith(" room")))
+      return "label_stuff: YOLOE's own label is a surface / place";
+    if (document.getElementById("v_border").checked && d.area >= 0.15 && d.borders >= 2) return `border_stuff: ${Math.round(d.area * 100)}% of frame, ${d.borders} borders`;
+    if (document.getElementById("v_group").checked && d.kids >= 2 && d.cover >= 0.6) return `group_test: ${d.kids} detections inside cover ${Math.round(d.cover * 100)}%`;
+    return "";
+  }
+  function drawV() {
+    v.fillStyle = cssv("--surface"); v.fillRect(0, 0, VW, VH); const rows = [];
+    for (const d of VD) { const why = rule(d); const [x0, y0, x1, y1] = d.box;
+      v.strokeStyle = why ? cssv("--bad") : cssv("--good"); v.lineWidth = why ? 1 : 2.5; v.setLineDash(why ? [5, 4] : []);
+      v.strokeRect(x0 + 2, y0 + 2, x1 - x0 - 4, y1 - y0 - 4); v.setLineDash([]); v.lineWidth = 1;
+      v.fillStyle = why ? cssv("--bad") : cssv("--good"); v.font = "12px system-ui"; v.fillText(d.n, x0 + 6, y0 + 16);
+      rows.push(`<tr><td>${d.n}</td><td class="mono">${d.label}</td><td>${why ? `<span class="verdict bad">dropped</span> ${why}` : '<span class="verdict good">kept</span>'}</td><td>${d.real ? "real object" : "not an object"}</td></tr>`); }
+    document.getElementById("valtab").innerHTML = "<tr><th>Detection</th><th>YOLOE label</th><th>Decision</th><th>Truth</th></tr>" + rows.join("");
+  }
+  ["v_label", "v_border", "v_group"].forEach((id) => document.getElementById(id).onchange = drawV); drawV();
+  window.addEventListener("themechange", () => { drawT(dets(frame)); drawV(); });
+</script>
+</body>
+</html>

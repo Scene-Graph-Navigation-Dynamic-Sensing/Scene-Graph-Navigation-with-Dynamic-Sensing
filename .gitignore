@@ -1,0 +1,40 @@
+# ── Python / tooling ──
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
+.venv/
+*.egg-info/
+.env
+.claude/settings.local.json
+
+# ── Shared heavy folders: symlinks to ../datasets, ../results, ... (see SETUP.md) ──
+/data
+/results
+/outputs
+/models
+/external
+/mobileclip2_b.ts
+/benchmarks/detect_track/outputs*/
+/benchmarks/detect_track/gt*/
+
+# ── Weight / checkpoint / large binary files anywhere ──
+*.pt
+*.pth
+*.ts
+*.ckpt
+*.train
+*.safetensors
+*.onnx
+*.pkl
+*.ply
+*.mp4
+*.MOV
+*.mov
+
+# ── Generated report parts ──
+/evaluation/reports/*/parts/
+
+# ── Logs / scratch ──
+*.log
+nohup.out

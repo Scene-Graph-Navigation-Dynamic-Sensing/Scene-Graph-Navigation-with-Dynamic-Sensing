@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Frames, Depth, Pose</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .imgwrap { position: relative; }
+  .imgwrap img { width: 100%; display: block; border-radius: 8px; border: 1px solid var(--line); cursor: crosshair; }
+  .cross { position: absolute; width: 14px; height: 14px; border: 2px solid #ff3b6b; border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; display: none; }
+  #readout td:nth-child(2) { font-family: var(--mono); }
+</style>
+</head>
+<body>
+<main>
+  <span class="stage-tag">stages 1 · 2 · 3</span>
+  <h1>Frames, depth and camera pose</h1>
+  <p class="lede">Before anything can be recognised, every pixel needs a place in the room. Three things give it one:
+    the pixel's position in the image, how far away it is (depth), and where the camera was (pose).</p>
+
+  <div class="grid3">
+    <div class="card"><h3>1 · Frame source</h3>
+      <p>A DroidCam stream, a video file or a dataset folder. Frames are kept every <code>stride</code> frames and resized to
+        <b>640 px wide</b> (<code>source.target_width</code>). Intrinsics are rescaled with them.</p>
+      <p class="muted">perception/frame_source.py</p></div>
+    <div class="card"><h3>2 · Depth</h3>
+      <p><span class="model">Depth Anything V3 metric (DA3METRIC-LARGE)</span></p>
+      <p>Predicts metres from one RGB image, scaled by <code>focal / 300</code>. Depths outside 0.1–10 m are discarded.
+        On Replica the dataset's own depth is used instead (<code>--depth_backend reference</code>).</p></div>
+    <div class="card"><h3>3 · Camera pose</h3>
+      <p><span class="model">DROID-SLAM</span> (separate process)</p>
+      <p>One 4×4 camera-to-world matrix per frame from optical flow between frames. Needs small motion between frames
+        (under ~5°). Replica runs use the dataset poses (<code>--pose_backend reference</code>).</p></div>
+  </div>
+
+  <h2>Try it: lift a pixel into the room</h2>
+  <p>Move the mouse over the frame (Replica office_0, frame 50). The pipeline does exactly this for every pixel of every frame.</p>
+  <div class="grid2">
+    <div>
+      <div class="imgwrap" id="wrapRGB"><img id="rgb" src="img/frame.jpg" alt="RGB frame"><div class="cross" id="c1"></div></div>
+      <div class="muted" style="margin:4px 0 10px">RGB frame, 640 × 363</div>
+      <div class="imgwrap" id="wrapD"><img id="dep" src="img/depth.jpg" alt="Depth map"><div class="cross" id="c2"></div></div>
+      <div class="muted">Depth (yellow = near, purple = far, 0–5 m)</div>
+    </div>
+    <div>
+      <table class="t" id="readout">
+        <tr><td>Pixel (u, v)</td><td id="r_uv">–</td></tr>
+        <tr><td>Depth z</td><td id="r_z">–</td></tr>
+        <tr><td>Camera coordinates<br><span class="muted">x = (u − cx)·z / fx, y = (v − cy)·z / fy</span></td><td id="r_cam">–</td></tr>
+        <tr><td>World coordinates<br><span class="muted">p<sub>world</sub> = R · p<sub>cam</sub> + t</span></td><td id="r_world">–</td></tr>
+        <tr><td>Voxel (1 cm)<br><span class="muted">floor(p / 0.01)</span></td><td id="r_vox">–</td></tr>
+      </table>
+      <div class="kv" style="margin-top:12px">
+        <div>fx, fy</div><div id="k_f"></div><div>cx, cy</div><div id="k_c"></div>
+      </div>
+      <h3>The whole frame, lifted</h3>
+      <canvas id="cloud"></canvas>
+      <div class="controls"><label>Rotate view <span class="v" data-for="yaw">0°</span><input type="range" id="yaw" min="-90" max="90" value="35"></label>
+        <label>Tilt <span class="v" data-for="pitch">0°</span><input type="range" id="pitch" min="-60" max="60" value="20"></label></div>
+      <p class="muted">160 × 91 sampled pixels back-projected with the real depth, in the camera's frame. The pipeline keeps every
+        pixel and merges them over all frames (next page).</p>
+    </div>
+  </div>
+
+  <h2>Why each part matters</h2>
+  <table class="t">
+    <tr><th>If this is wrong…</th><th>…this happens downstream</th></tr>
+    <tr><td>Focal length (fx)</td><td>DA3 metric depth is proportional to fx, so the whole map is scaled wrongly; objects look too big or too small.</td></tr>
+    <tr><td>Depth at object edges</td><td>Pixels at an edge get the wall's depth and "bleed" onto it. Fusion peels 2 px off each mask (<code>mask_erode_px: 2</code>) to limit this.</td></tr>
+    <tr><td>Pose drift</td><td>The same object seen later lands a few cm away and fusion may count it twice (a duplicate).</td></tr>
+    <tr><td>Too few overlapping frames</td><td>DROID-SLAM loses track; 3RScan keyframes (up to 52° apart) cannot be tracked, so they use dataset poses.</td></tr>
+  </table>
+
+  <div class="where"><b>In the code:</b> perception/frame_source.py · perception/depth_estimation/ · perception/pose_estimation/ ·
+    scripts/run_static_scene_graph.py stages 2–3 · config <code>source</code>, <code>camera</code>, <code>depth</code>, <code>pose</code>.
+    Written to disk: data/processed/&lt;scene&gt;/rgb, point, mask, poses, capture.json.</div>
+</main>
+<script src="common.js"></script>
+<script src="img/depth_small.js"></script>
+<script>
+  const D = window.DEPTH, K = D.K, P = D.c2w;
+  document.getElementById("k_f").textContent = `${K.fx.toFixed(1)}, ${K.fy.toFixed(1)}`;
+  document.getElementById("k_c").textContent = `${K.cx.toFixed(1)}, ${K.cy.toFixed(1)}`;
+  const f3 = (a) => `(${a.map((x) => x.toFixed(2)).join(", ")})`;
+  function depthAt(u, v) {
+    const i = Math.min(D.h - 1, Math.floor(v / D.scale)), j = Math.min(D.w - 1, Math.floor(u / D.scale));
+    return D.depth[i * D.w + j];
+  }
+  function show(ev, img) {
+    const r = img.getBoundingClientRect();
+    const u = Math.round((ev.clientX - r.left) / r.width * K.w), v = Math.round((ev.clientY - r.top) / r.height * K.h);
+    for (const id of ["c1", "c2"]) {
+      const c = document.getElementById(id); c.style.display = "block";
+      c.style.left = `${u / K.w * 100}%`; c.style.top = `${v / K.h * 100}%`;
+    }
+    const z = depthAt(u, v);
+    document.getElementById("r_uv").textContent = `(${u}, ${v})`;
+    document.getElementById("r_z").textContent = z > 0 ? `${z.toFixed(3)} m` : "no depth";
+    if (!(z > 0)) return;
+    const cam = [(u - K.cx) * z / K.fx, (v - K.cy) * z / K.fy, z];
+    const w = [0, 1, 2].map((r) => P[r][0] * cam[0] + P[r][1] * cam[1] + P[r][2] * cam[2] + P[r][3]);
+    document.getElementById("r_cam").textContent = f3(cam) + " m";
+    document.getElementById("r_world").textContent = f3(w) + " m";
+    document.getElementById("r_vox").textContent = `[${w.map((x) => Math.floor(x / 0.01)).join(", ")}]`;
+  }
+  for (const id of ["rgb", "dep"]) {
+    const img = document.getElementById(id);
+    img.addEventListener("mousemove", (e) => show(e, img));
+  }
+
+  // point cloud in the camera frame, orthographic, rotated by the sliders
+  const cv = document.getElementById("cloud");
+  let ctx = hidpi(cv, 460, 300);
+  const pts = [];
+  for (let i = 0; i < D.h; i++) for (let j = 0; j < D.w; j++) {
+    const z = D.depth[i * D.w + j]; if (!(z > 0)) continue;
+    const u = j * D.scale + D.scale / 2, v = i * D.scale + D.scale / 2;
+    const k = (i * D.w + j) * 3;
+    pts.push([(u - K.cx) * z / K.fx, (v - K.cy) * z / K.fy, z, `rgb(${D.rgb[k]},${D.rgb[k + 1]},${D.rgb[k + 2]})`]);
+  }
+  let yaw = 35, pitch = 20;
+  function draw() {
+    ctx.fillStyle = cssv("--surface"); ctx.fillRect(0, 0, 460, 300);
+    const cy = Math.cos(yaw * Math.PI / 180), sy = Math.sin(yaw * Math.PI / 180);
+    const cp = Math.cos(pitch * Math.PI / 180), sp = Math.sin(pitch * Math.PI / 180);
+    const proj = pts.map(([x, y, z, c]) => {
+      z -= 2.5;                                             // rotate about a point 2.5 m in front of the camera
+      const x1 = cy * x + sy * z, z1 = -sy * x + cy * z;
+      const y1 = cp * y - sp * z1, z2 = sp * y + cp * z1;
+      return [x1, y1, z2, c];
+    }).sort((a, b) => b[2] - a[2]);
+    for (const [x, y, , c] of proj) { ctx.fillStyle = c; ctx.fillRect(230 + x * 70, 150 + y * 70, 2.2, 2.2); }
+    ctx.fillStyle = cssv("--ink-3"); ctx.font = "11px system-ui";
+    ctx.fillText(`${pts.length} points · camera at the origin`, 8, 292);
+  }
+  slider("yaw", (v) => { yaw = v; draw(); }, (v) => `${v}°`)();
+  slider("pitch", (v) => { pitch = v; draw(); }, (v) => `${v}°`)();
+  window.addEventListener("themechange", draw);
+</script>
+</body>
+</html>

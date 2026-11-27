@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Instance Naming</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .bar { height: 14px; background: var(--accent); border-radius: 3px; display: inline-block; vertical-align: middle; }
+  .bar.syn { background: var(--good); }
+  .bar.no { background: var(--line); }
+  #beam td { padding: 4px 8px; }
+  select { padding: 5px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+</style>
+</head>
+<body>
+<main>
+  <span class="stage-tag">stage 7 · object_fusion/instance_tagger.py</span>
+  <h1>Instance naming</h1>
+  <p class="lede">NOVIC is a decoder trained to turn a CLIP image embedding into a noun from a 42,919-noun vocabulary. It is run on
+    each object's <b>averaged</b> embedding — once when its track ends, again only if the object changed later — and returns a beam of
+    10 candidate nouns with probabilities. Stage 7 turns that beam into one readable name, or "unknown".</p>
+
+  <h2>The steps</h2>
+  <ol class="steps">
+    <li><b>Track-end name or final decode.</b> Objects already named at their last track end keep that beam; the rest are decoded from the final averaged embedding.</li>
+    <li><b>Everyday name.</b> A NOVIC noun not in <code>configs/vocab/indoor_objects.txt</code> is replaced by the listed name that best fits the image: CLIP score of "a photo of a &lt;name&gt;" + 0.2 × text similarity to NOVIC's own word ("billfold" → wallet, "office furniture" → chair).</li>
+    <li><b>Head noun.</b> Modifiers are stripped ("brown wooden office chair" → "office chair").</li>
+    <li><b>Confidence, pooled over synonyms.</b> The top score plus every beam alternative whose text embedding is ≥ 0.8 alike — NOVIC spreads probability over synonyms.</li>
+    <li><b>Weak name fallback.</b> If the pooled confidence is below the floor, a confident track-end name from a track that backed ≥ 25% of the detections is used instead.</li>
+    <li><b>Below the floor</b> (0.10 on Replica, 0.15 for video): "unknown" (datasets) or dropped (video).</li>
+    <li><b>Support surfaces</b> (table tops from clean-up) take the first surface noun in their beam, or "table", whatever the score.</li>
+  </ol>
+
+  <h2>Try it on real objects</h2>
+  <p>Real beams from results/replica_final. Green bars are synonyms of the top label (text cosine shown); they add up to the confidence.
+    The numbers below reproduce the stored <code>name_confidence</code> exactly.</p>
+  <div class="controls">
+    <label><span>Object</span><select id="pick"></select></label>
+    <label>Synonym similarity <span class="v" data-for="syn"></span><input type="range" id="syn" min="0.5" max="1" step="0.01" value="0.8"></label>
+    <label>Minimum name confidence <span class="v" data-for="minc"></span><input type="range" id="minc" min="0" max="0.5" step="0.01" value="0.10"></label>
+    <label><span>Low-score action</span><select id="act"><option value="unknown">unknown (datasets)</option><option value="drop">drop (video)</option></select></label>
+  </div>
+  <div class="grid2">
+    <table class="t" id="beam"></table>
+    <div class="card" style="margin:0" id="nameres"></div>
+  </div>
+
+  <h2>Why a name can be confident and still wrong</h2>
+  <p>NOVIC names what the crop <i>shows</i>. On Replica, 73% of non-object nodes (wall pieces, multi-object nodes) pass the 0.15 name
+    floor, against 64% of real objects — ceiling pieces were named "curtain" (office_0) and "lamp" (room_0), with "room divider" high in their beams. That is why non-objects have to be
+    removed geometrically or by the detection checks, not by name confidence.</p>
+
+  <div class="where"><b>In the code:</b> object_fusion/instance_tagger.py (<code>tag_instances</code>, <code>to_everyday_names</code>,
+    <code>name_confidences</code>) · semantic_decoding/label_mapper/label_mapper.py (<code>canonicalize</code>, <code>merge_near_duplicates</code>) ·
+    semantic_decoding/novic/novic_decoder.py (<code>decode_embeddings</code>, beam search <code>beam_k10</code>). Config: <code>label_mapper.*</code>.</div>
+</main>
+<script src="common.js"></script>
+<script src="img/naming_examples.js"></script>
+<script>
+  const N = window.NAMING; const pick = document.getElementById("pick");
+  N.forEach((n, i) => { const o = document.createElement("option"); o.value = i;
+    o.textContent = `${n.scene} · ${n.node} (GT: ${n.gt || "–"})`; pick.appendChild(o); });
+  function render() {
+    const n = N[+pick.value], syn = +document.getElementById("syn").value, minc = +document.getElementById("minc").value,
+      act = document.getElementById("act").value;
+    let conf = 0;
+    document.getElementById("beam").innerHTML = "<tr><th>Beam label</th><th>Probability</th><th>cos to top</th></tr>" + n.beam.map(([l, p, c], i) => {
+      const s = c >= syn; if (s) conf += p;
+      return `<tr><td>${i === 0 ? "<b>" + l + "</b>" : l}</td><td><span class="bar ${s ? "syn" : "no"}" style="width:${Math.max(2, p * 180)}px"></span> <span class="mono">${p.toFixed(3)}</span></td><td class="mono">${c.toFixed(2)}</td></tr>`;
+    }).join("");
+    const keep = conf >= minc;
+    const shown = n.novic_label ? `NOVIC said <b>${n.novic_label}</b> → everyday name <b>${n.name}</b>` : `name <b>${n.name}</b>`;
+    document.getElementById("nameres").innerHTML =
+      `<div class="kv"><div>Top label</div><div>${n.beam[0][0]} (${n.beam[0][1].toFixed(3)})</div>
+        <div>Pooled confidence</div><div>${conf.toFixed(3)}</div><div>Stored by the pipeline</div><div>${(+n.conf).toFixed(3)} (at 0.80)</div>
+        <div>GT class</div><div>${n.gt || "–"}</div></div>
+       <p style="margin-top:12px">${keep ? `<span class="verdict good">named</span> ${n.name === "unknown" ? "(this run kept it unknown)" : ""}` :
+          act === "unknown" ? '<span class="verdict warn">unknown</span>' : '<span class="verdict bad">dropped</span>'}</p>
+       <p class="muted">${n.name !== "unknown" ? shown : "The pipeline stored this node as unknown (confidence below 0.10)."}</p>`;
+  }
+  pick.onchange = render; document.getElementById("act").onchange = render;
+  slider("syn", render, (v) => v.toFixed(2))(); slider("minc", render, (v) => v.toFixed(2))();
+</script>
+</body>
+</html>

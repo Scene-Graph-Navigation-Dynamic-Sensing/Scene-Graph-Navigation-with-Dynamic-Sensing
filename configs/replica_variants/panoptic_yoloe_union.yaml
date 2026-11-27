@@ -1,0 +1,7 @@
+# Mask2Former + YOLOE (the default until 2026-11-27): Mask2Former Swin-L panoptic plus YOLOE prompt-free masks
+# <= 2% of the frame that do not lie on a panoptic thing. Recovers small fixtures (wall plugs, switches, vents)
+# that Mask2Former alone misses: recall 57.9% vs 47.3%, F1 0.647 vs 0.611, at lower precision and ~1.5x the time.
+detection:
+  backend: panoptic
+  panoptic:
+    yoloe_union: {enabled: true}

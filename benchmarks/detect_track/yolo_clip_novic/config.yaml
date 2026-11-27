@@ -1,0 +1,36 @@
+# yolo_clip_novic pipeline configuration
+# ========================================
+
+# ─── Detector: YOLO + BoT-SORT ───
+yolo_weights: "yolo11n.pt"
+conf_thresh: 0.35
+iou_thresh: 0.5
+tracker_type: "botsort.yaml"   # or "bytetrack.yaml"
+img_size: 640
+
+# ─── CLIP encoder ───
+clip_model: "ViT-H-14-378-quickgelu"
+clip_pretrained: "dfn5b"
+fp16: false                    # true = fp16 CLIP encode (faster, same nouns on 60-frame check)
+pad_frac: 0.15                 # contextual padding fraction around each crop
+
+retag_min_votes: 0             # 0 = tag every track every frame; N = tag until N votes, then every retag_interval frames
+retag_interval: 10
+
+# ─── NOVIC decoder ───
+novic_checkpoint: ""           # empty = stub decoder
+beam_k: 10
+vocab_free_temp: 2.0
+genre_penalty: true
+temperature: 1.0
+alpha: 0.0
+
+# ─── Trajectory manager ───
+max_missed_frames: 25
+
+# ─── Device & I/O ───
+device: "cuda"
+source: 0
+output_path: "output.mp4"
+crops_dir: ""                  # empty = do not save track crops
+display: true

@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Track Fusion</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .ex button { margin: 3px 4px 3px 0; }
+  .gate { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; align-items: center; font-size: 14px; }
+  #timeline { width: 100%; }
+</style>
+</head>
+<body>
+<main>
+  <span class="stage-tag">stage 6 · object_fusion/instance_fusion.py</span>
+  <h1>Track accumulation and commit</h1>
+  <p class="lede">Fusion turns many 2D detections into one 3D object per real thing. It works per <b>track</b>, not per detection:
+    everything BoT-SORT calls the same id is piled up first, and only when the track ends is the whole pile compared with the
+    map — once, with many views of evidence.</p>
+
+  <h2>The life of a track</h2>
+  <ol class="steps">
+    <li><b>Detection arrives</b> with its mask voxels (from the voxel map's pixel lookup, mask eroded by 2 px), its embedding and its track id.</li>
+    <li><b>No id (−1)?</b> It is a one-detection track and is committed immediately.</li>
+    <li><b>Known id:</b> voxels are joined into the pending track; the embedding joins a running average. If the new detection's
+      cosine to the track so far is below <b>0.6</b>, the tracker probably handed the id to another object: the old pile is committed and a new one starts (<code>track_split_cosine</code>).</li>
+    <li><b>Unseen for 10 frames</b> → commit: DBSCAN removes stray voxels, then the track is scored against every map object.</li>
+    <li><b>Best passing object</b> → merge (voxel union, detection-weighted average embedding). <b>None passes</b> → a new map object.</li>
+    <li>NOVIC decodes the object's averaged embedding into a name (<code>track_names</code>), so naming is ready when the video ends.</li>
+  </ol>
+  <p class="muted">Every 20 frames all objects built so far are cleaned with DBSCAN (<code>denoise_interval</code>).</p>
+
+  <h2>Try it: the commit decision</h2>
+  <p>Set the three numbers fusion computes between a committing track and its closest map object, or load a real commit from the
+    office_0 log.</p>
+  <div class="ex" id="examples"></div>
+  <div class="grid2">
+    <div>
+      <div class="controls" style="flex-direction:column;align-items:flex-start">
+        <label>geometric — share of the track's voxels within one voxel of the object <span class="v" data-for="geo">0</span><input type="range" id="geo" min="0" max="1" step="0.001" value="0.42"></label>
+        <label>reverse — share of the object's voxels within one voxel of the track <span class="v" data-for="rev">0</span><input type="range" id="rev" min="0" max="1" step="0.001" value="0.2"></label>
+        <label>cosine of the two averaged embeddings <span class="v" data-for="cos">0</span><input type="range" id="cos" min="0" max="1" step="0.001" value="0.885"></label>
+        <label style="flex-direction:row;gap:8px;align-items:center"><input type="checkbox" id="saved"> the object is from a saved map (scene update)</label>
+      </div>
+    </div>
+    <div class="card" style="margin:0">
+      <div class="gate" id="gates"></div>
+      <div style="margin-top:12px" id="decision"></div>
+    </div>
+  </div>
+  <p class="muted">Why the containment gate: a bottle standing on a table touches the table only where it stands (0.19 of its voxels,
+    laptop 0.06), while a second view of the same object lies 0.4–1.0 inside it. Why the cosine gate: an object flush against a wall
+    overlaps it fully (geometric ≈ 1.0) and would merge at cosine ≈ 0.55 without it; on office_0, 8 of 16 such merges had cosine &lt; 0.75.</p>
+
+  <h2>Try it: a walkthrough, track by track</h2>
+  <p>A short synthetic sequence. Each row is a BoT-SORT track; a block is a frame it was seen in. Step through the frames and watch
+    commits happen 10 frames after a track's last detection.</p>
+  <div class="controls"><button class="btn primary" id="tplay">▶ Play</button><button class="btn" id="tstep">Step</button><button class="btn" id="treset">Reset</button>
+    <span class="pill" id="tframe"></span></div>
+  <canvas id="timeline"></canvas>
+  <table class="t" id="tlog" style="margin-top:10px"></table>
+
+  <div class="where"><b>In the code:</b> object_fusion/instance_fusion.py — <code>add_frame</code> (accumulate, split, commit after
+    <code>track_end_frames</code> = 10), <code>_commit</code>, <code>_similarity</code> (score and gates), <code>merge_obj_to_obj</code>
+    (DoVSG). Logged per commit in pipeline.log and track_commits.json. Config: <code>object_fusion.sim_threshold</code> 0.55,
+    <code>spatial_weight</code> 0.3, <code>vis_weight</code> 0.7, <code>min_merge_cosine</code> 0.75, <code>track_split_cosine</code> 0.6,
+    <code>mask_erode_px</code> 2; saved objects: <code>scene_update.sim_threshold</code> 0.75.</div>
+</main>
+<script src="common.js"></script>
+<script>
+  // real commits from results/replica_rgbfix/run1/office_0/pipeline.log (reverse containment not logged: set equal to "contain")
+  const EX = [
+    ["track 87 → merged #26", 0.998, 0.998, 0.967],
+    ["track 169 → new", 0.0, 0.0, 0.705],
+    ["track 138 → new (agg 0.58!)", 0.004, 0.004, 0.827],
+    ["track 143 → merged #33", 0.827, 0.958, 0.933],
+    ["track 149 → merged #22", 0.421, 0.421, 0.885],
+    ["laptop on a table", 0.06, 0.01, 0.78],
+    ["plug on a wall", 1.0, 0.001, 0.58],
+  ];
+  const exd = document.getElementById("examples");
+  EX.forEach(([n, g, r, c]) => { const b = document.createElement("button"); b.className = "btn"; b.textContent = n;
+    b.onclick = () => { set("geo", g); set("rev", r); set("cos", c); }; exd.appendChild(b); });
+  const ids = ["geo", "rev", "cos"]; const runs = {};
+  function set(id, v) { document.getElementById(id).value = v; runs[id](); }
+  function decide() {
+    const geo = +document.getElementById("geo").value, rev = +document.getElementById("rev").value, cos = +document.getElementById("cos").value;
+    const saved = document.getElementById("saved").checked, thr = saved ? 0.75 : 0.55;
+    const agg = 0.3 * geo + 0.7 * cos, cont = Math.max(geo, rev);
+    const g = [
+      [`score 0.3·${geo.toFixed(3)} + 0.7·${cos.toFixed(3)} = <b>${agg.toFixed(3)}</b> ≥ ${thr}`, agg >= thr],
+      [`containment max(${geo.toFixed(3)}, ${rev.toFixed(3)}) = ${cont.toFixed(3)} ≥ 0.3`, cont >= 0.3],
+      [`cosine ${cos.toFixed(3)} ≥ 0.75 (min_merge_cosine)`, cos >= 0.75],
+    ];
+    document.getElementById("gates").innerHTML = g.map(([t, ok]) => `<div>${t}</div><div><span class="verdict ${ok ? "good" : "bad"}">${ok ? "✓" : "✗"}</span></div>`).join("");
+    const all = g.every((x) => x[1]);
+    const why = !g[0][1] ? "the score is too low" : !g[1][1] ? "neither lies inside the other — they only touch (an object on or against another)" : !g[2][1] ? "they overlap but do not look alike" : "";
+    document.getElementById("decision").innerHTML = all
+      ? `<span class="verdict good">MERGE into this object</span><p class="muted">If several objects pass, the highest score wins.</p>`
+      : `<span class="verdict warn">NEW map object</span><p class="muted">Not merged because ${why}.</p>`;
+  }
+  ids.forEach((id) => runs[id] = slider(id, decide, (v) => v.toFixed(3)));
+  document.getElementById("saved").onchange = decide;
+  ids.forEach((id) => runs[id]());
+
+  // ── track timeline simulation ──
+  const T = [                                             // [track id, object, frames seen, cosine to its object, note]
+    { id: 3, obj: "bin", f: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] },
+    { id: 7, obj: "chair", f: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13] },
+    { id: 9, obj: "table", f: [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17] },
+    { id: 12, obj: "laptop", f: [8, 9, 10, 11, 12, 13, 14] },
+    { id: 21, obj: "bin", f: [22, 23, 24, 25, 26], again: true },
+    { id: 22, obj: "chair", f: [24, 25, 26, 27, 28, 29, 30], split: 28, splitObj: "cushion" },
+    { id: -1, obj: "mug", f: [19] },
+  ];
+  const tc = document.getElementById("timeline"); const TW = 900, TH = 30 + T.length * 30; let tx = hidpi(tc, TW, TH);
+  let fr = 0, events = [], committed = new Set(), mapObjs = [], timer = null; const LAST = 42;
+  function lastSeen(t) { return Math.max(...t.f.filter((x) => x <= fr)); }
+  function stepTL() {
+    for (const t of T) {
+      if (committed.has(t.id)) continue;
+      if (t.split && fr === t.split) { events.unshift(`frame ${fr}: track ${t.id}'s new detection has cosine 0.48 to the track (< 0.6) → split: the chair part is committed, the ${t.splitObj} continues as a new pile`);
+        commit({ ...t, obj: "chair" }, true); t.obj = t.splitObj; t.f = t.f.filter((x) => x >= t.split); }
+      if (t.id === -1 && fr === t.f[0]) { commit(t); committed.add(t.id); events.unshift(`frame ${fr}: detection with no track id → committed at once`); continue; }
+      const seen = t.f.filter((x) => x <= fr);
+      if (seen.length && fr - lastSeen(t) >= 10 && t.id !== -1) { commit(t); committed.add(t.id); }
+    }
+    document.getElementById("tframe").textContent = `frame ${fr}`;
+    document.getElementById("tlog").innerHTML = events.slice(0, 7).map((e) => `<tr><td>${e}</td></tr>`).join("");
+    drawTL(); fr++; if (fr > LAST) stopTL();
+  }
+  function commit(t, partial) {
+    const hit = mapObjs.find((o) => o.obj === t.obj);
+    if (hit) { hit.n += 1; events.unshift(`frame ${fr}: track ${t.id} (${t.obj}) committed → overlaps map object "${t.obj}" in 3D and cos ≈ 0.9 → <b>merged</b> (that object now holds ${hit.n} tracks)`); }
+    else { mapObjs.push({ obj: t.obj, n: 1 }); events.unshift(`frame ${fr}: track ${t.id} (${t.obj}) committed → no map object overlaps it → <b>new object</b> #${mapObjs.length}; NOVIC names it`); }
+  }
+  function drawTL() {
+    tx.fillStyle = cssv("--surface"); tx.fillRect(0, 0, TW, TH);
+    const X = (f) => 130 + f * 17;
+    tx.strokeStyle = cssv("--accent"); tx.beginPath(); tx.moveTo(X(fr) + 8, 8); tx.lineTo(X(fr) + 8, TH - 6); tx.stroke();
+    T.forEach((t, i) => {
+      const y = 22 + i * 30; tx.fillStyle = cssv("--ink-2"); tx.font = "12px system-ui";
+      tx.fillText(t.id < 0 ? "no id (−1)" : `track ${t.id}`, 8, y + 12);
+      for (const f of t.f) { tx.fillStyle = f <= fr ? (committed.has(t.id) ? cssv("--good") : cssv("--accent")) : cssv("--surface-2"); tx.fillRect(X(f), y, 15, 16); }
+      if (!committed.has(t.id) && t.f[0] <= fr && t.id !== -1) {
+        const left = 10 - (fr - lastSeen(t)); tx.fillStyle = cssv("--ink-3"); tx.fillText(left > 0 ? `commit in ${left}` : "", X(Math.max(...t.f)) + 22, y + 12);
+      }
+      tx.fillStyle = cssv("--ink-3"); tx.fillText(t.obj, 80, y + 12);
+    });
+  }
+  function stopTL() { clearInterval(timer); timer = null; document.getElementById("tplay").textContent = "▶ Play"; }
+  document.getElementById("tplay").onclick = () => { if (timer) return stopTL(); document.getElementById("tplay").textContent = "❚❚ Pause"; timer = setInterval(stepTL, 300); };
+  document.getElementById("tstep").onclick = stepTL;
+  document.getElementById("treset").onclick = () => { stopTL(); location.reload(); };
+  drawTL(); document.getElementById("tframe").textContent = "frame 0";
+  window.addEventListener("themechange", () => { drawTL(); });
+</script>
+</body>
+</html>

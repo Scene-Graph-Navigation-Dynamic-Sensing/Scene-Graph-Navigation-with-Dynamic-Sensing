@@ -1,0 +1,159 @@
+# Static Open-Vocabulary Scene Graph Pipeline Configuration — synthetic_dataset_01
+# =============================================================
+# Same pipeline as configs/pipeline.yaml, pointed at the converted
+# ZED2i/Isaac-Sim capture (scripts/prepare_synthetic_dataset.py) with
+# depth/pose read from the dataset's own ground truth instead of running
+# Depth Anything V3 / DROID-SLAM. Both estimators stay fully wired up in the
+# code — flip depth.backend/pose.backend back to switch this run to live
+# estimation, no code changes needed either way.
+# See docs/pipeline_design.md for the full architecture this config implements.
+
+# ─── External repo paths (reused code / vendored weights, not copied) ───
+external:
+  scene_graph_generation_root: "/home/ravindu/SceneGraphNav/external/Scene-Graph-Generation"
+  droid_slam_dir: "/home/ravindu/SceneGraphNav/external/Scene-Graph-Generation/DROID-SLAM"
+  droid_slam_module_dir: "/home/ravindu/SceneGraphNav/external/Scene-Graph-Generation/DROID-SLAM/droid_slam"
+  dovsg_pose_estimation_script: "/home/ravindu/SceneGraphNav/external/Scene-Graph-Generation/dovsg/scripts/pose_estimation.py"
+  dovsg_cpu_pose_estimation_script: "/home/ravindu/SceneGraphNav/external/Scene-Graph-Generation/dovsg/scripts/cpu_pose_estimation.py"
+  droid_slam_checkpoint: "/home/ravindu/SceneGraphNav/external/Scene-Graph-Generation/DROID-SLAM/droid.pth"
+
+# ─── Video source (perception/frame_source.py) ───
+source:
+  # Converted by: python scripts/prepare_synthetic_dataset.py
+  #   --sequence /home/ravindu/SceneGraphNav/datasets/synthetic/synthetic_dataset_01
+  #   --out data/raw/synthetic_dataset_01
+  uri: "data/raw/synthetic_dataset_01"
+  capture_interval: 0.3       # unused for a dataset folder source
+  stride: 2                   # every 2nd frame -- ~96 frames spread across the full walk, not just the start
+  max_frames: 0                # 0 = no limit
+  target_width: 640           # frames are resized to this width; height keeps aspect
+  depth_scale: 1000.0         # unused here: this dataset's depth/ is .npy metres already
+
+# ─── Camera intrinsics, used when the source has no camera.yaml ───
+# Not used for this dataset: prepare_synthetic_dataset.py writes a
+# camera.yaml (from the recording's own metadata.json) into the converted
+# dataset folder, which always takes priority over this block.
+camera:
+  fx: 525.0
+  fy: 525.0
+  cx: 320.0
+  cy: 240.0
+  width: 640
+  height: 480
+
+# ─── Depth Estimation (perception/depth_estimation) ───
+depth:
+  # "reference" = use the dataset's own depth/*.npy (Isaac Sim ground-truth
+  # depth, already metric) instead of running Depth Anything V3. Flip back to
+  # "depth_anything_v3" to estimate depth on this same dataset instead.
+  backend: "reference"
+  model_id: "depth-anything/DA3METRIC-LARGE"
+  fallback_model_id: "depth-anything/Depth-Anything-V2-Metric-Indoor-Small-hf"
+  align: "none"
+  align_sample_frames: 10
+  min_valid_depth_m: 0.1
+  max_valid_depth_m: 10.0
+  device: "cuda"
+
+# ─── Pose Estimation (perception/pose_estimation) ───
+pose:
+  # "reference" = use the dataset's own poses/*.txt (converted from odom.csv
+  # ground truth by prepare_synthetic_dataset.py) instead of running
+  # DROID-SLAM. Flip back to "droid_slam" or "cpu_icp" to estimate pose on
+  # this same dataset instead.
+  backend: "reference"
+  stride: 1                      # must stay 1: the voxel map needs a pose for every frame
+  weights: "droid.pth"           # unused while backend is "reference"
+
+# ─── Detection + Segmentation (perception/detection) — prompt-free, no class list ───
+detection:
+  backend: "yoloe_seg_pf"
+  weights: "/home/ravindu/SceneGraphNav/models/checkpoints/yoloe-26s-seg-pf.pt"
+  conf_thresh: 0.25
+  iou_thresh: 0.5
+  img_size: 640
+  device: "cuda"
+  use_tracking: true
+  tracker: "botsort.yaml"        # or "bytetrack.yaml"
+
+# ─── Semantic Decoding: NOVIC (semantic_decoding/novic) ───
+semantic_decoding:
+  novic_dir: "/home/ravindu/SceneGraphNav/external/novic"
+  novic_checkpoint: "/home/ravindu/SceneGraphNav/external/novic/outputs/ovod_20240628_142131/ovod_chunk0433_20240630_235415.train"
+  gencfg: "beam_k10_vnone_gp_t1_a0"
+  guide_targets: null
+  crop_mode: "bbox"
+  crop_padding_px: 15
+  crop_padding_frac: 0.15
+  device: "cuda"
+
+# ─── Label Mapper (semantic_decoding/label_mapper) ───
+label_mapper:
+  merge_similarity_threshold: 0.9
+  # name confidence = the top label's beam score plus its synonyms' in the beam
+  # (text cosine >= synonym_similarity); real objects on IMG_6100 scored >= 0.25,
+  # guesses <= 0.11
+  min_name_score: 0.15
+  synonym_similarity: 0.8
+  # A NOVIC label not in this list (e.g. "billfold", "office furniture") is replaced
+  # by the listed name that best matches the object's image, nudged towards
+  # NOVIC's own word by everyday_name_weight. null keeps NOVIC's labels as-is.
+  everyday_names_file: "configs/vocab/indoor_objects.txt"
+  everyday_name_weight: 0.2
+  low_score_action: "drop"          # "drop" removes the instance; "unknown" keeps it unnamed with its top-k guesses
+
+# ─── Object Fusion (object_fusion) — spatial + visual only, no text classes ───
+object_fusion:
+  # 0.05 (was 0.01): dense ground-truth depth + long-lived tracks (one object
+  # visible for ~180/193 frames) let per-object point clouds balloon at 1cm
+  # resolution, making denoise_objects()'s DBSCAN pass and merge_objects()'s
+  # FAISS matching increasingly slow as the scan progresses (~25x fewer
+  # points on flat surfaces at 5x coarser resolution -> both scale close to
+  # linearly with point count).
+  voxel_resolution: 0.05
+  sim_threshold: 0.55
+  vis_weight: 0.7
+  spatial_weight: 0.3
+  text_weight: 0.0
+  obj_min_detections: 3
+  downsample_voxel_size: 0.05
+  # A large, flat instance at furniture height is a table or desk top. NOVIC
+  # names it after the clutter standing on it (IMG_6100's desk decoded as
+  # "laptop"), so it takes the first surface noun in its beam instead.
+  relabel_support_surfaces: true
+  support_surface_min_area_m2: 0.8
+  support_surface_top_range_m: [0.3, 1.3]
+  support_surface_min_slab_fraction: 0.5   # share of points in its densest 10 cm horizontal slab
+
+# ─── Scene Graph Builder (scene_graph/builder) ───
+scene_graph:
+  gravity_align: true
+  resolution: 0.01
+  neighbour_num: 5
+  stand_floor_threshold: 0.15
+  alphashape_alpha: 1.0
+  alpha_shape_overleaf_rate_threshold: 0.1
+  part_intersection_rate_threshold: 0.2
+  inside_threshold: 0.95
+  # "A on B" also needs B's top within support_max_gap_m below, or
+  # support_max_penetration_m above, A's lowest point
+  support_max_gap_m: 0.10
+  support_max_penetration_m: 0.15
+  # "next to" (lateral edge): same parent, footprint gap <= next_to_max_gap_m,
+  # height ranges overlapping by >= next_to_min_vertical_overlap of the shorter
+  next_to_max_gap_m: 0.30
+  next_to_min_vertical_overlap: 0.5
+
+# ─── Task Planning (task_planning) — Gemini-based command grounding ───
+task_planning:
+  gemini_api_key: ""   # leave empty: read from $GEMINI_API_KEY or code/.env (git-ignored)
+  model: "gemini-2.5-flash"
+
+# ─── Outputs ───
+outputs:
+  data_processed_dir: "data/processed"
+  scene_graphs_dir: "outputs/scene_graphs"
+  visualizations_dir: "outputs/visualizations"
+  logs_dir: "outputs/logs"
+
+device: "cuda"

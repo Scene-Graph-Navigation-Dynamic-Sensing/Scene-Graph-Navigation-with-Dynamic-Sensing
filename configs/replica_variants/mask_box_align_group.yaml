@@ -1,0 +1,11 @@
+# Mask-box alignment, group rule: drop a detection whose box covers > 30% of the image and contains >= 3
+# smaller detections of the same frame (a group / area, not one object); no fill test (it cost the sofa).
+# Boxes tightened to their masks. Offline on room_0 + office_0: 1% of real-object detections, 24% of the
+# detections behind stray nodes (results/mask_box_fill/summary.md).
+detection:
+  mask_box_filter:
+    enabled: true
+    min_box_frac: 0.3
+    min_fill: null
+    min_contained: 3
+  tighten_box_to_mask: true

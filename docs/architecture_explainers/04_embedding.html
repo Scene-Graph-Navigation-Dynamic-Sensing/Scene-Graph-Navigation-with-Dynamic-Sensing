@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Crop and Embed</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  #stage { position: relative; user-select: none; }
+  #stage img { width: 100%; display: block; border-radius: 8px; border: 1px solid var(--line); }
+  #stage .box { position: absolute; border: 2px solid #ff3b6b; pointer-events: none; }
+  #stage .pad { position: absolute; border: 2px dashed #ffd23b; pointer-events: none; }
+  #dial { max-width: 300px; }
+</style>
+</head>
+<body>
+<main>
+  <span class="stage-tag">stage 5b</span>
+  <h1>Crop and embed</h1>
+  <p class="lede">Each detection is cut out of the frame and turned into a list of 1024 numbers by a CLIP image encoder. Two crops
+    of the same thing give nearly the same numbers, so "do these look alike?" becomes a single number: the cosine similarity.
+    This embedding is used for matching in fusion and, averaged per object, for naming.</p>
+
+  <div class="model">NOVIC's embedder: OpenCLIP <b>apple/DFN5B-CLIP-ViT-H-14-378</b> · 378 × 378 input · 1024-d output ·
+    runs on the embedding thread, batched, on one or more GPUs</div>
+
+  <h2>Try it: the crop CLIP actually sees</h2>
+  <p>Drag on the frame to draw a detection box. The pipeline pads the box by <b>15% of its own size</b> on each side
+    (<code>crop_padding_frac: 0.15</code>), so a small object keeps some context and a large one is not swamped by background.</p>
+  <div class="controls">
+    <label>Padding (fraction of the box) <span class="v" data-for="padf">0.15</span><input type="range" id="padf" min="0" max="0.6" step="0.05" value="0.15"></label>
+    <label><span>Crop mode</span><select id="mode"><option value="bbox">bbox (pipeline)</option><option value="seg">segmented (mask, rest black)</option></select></label>
+  </div>
+  <div class="grid2">
+    <div id="stage"><img id="frame" src="img/frame.jpg" alt="frame" draggable="false"><div class="pad" id="padbox"></div><div class="box" id="box"></div></div>
+    <div>
+      <canvas id="crop"></canvas>
+      <p class="muted" id="cropinfo"></p>
+      <p class="muted">Why not the segmented crop? Tested on real crops: blacking out the background makes CLIP confident and wrong
+        (desk clutter decoded as "conch" 0.82). The plain padded box keeps the context CLIP was trained on.</p>
+    </div>
+  </div>
+
+  <h2>What a cosine similarity means here</h2>
+  <p>Turn the dial: two embeddings at that cosine, and what each part of the pipeline does with it.</p>
+  <div class="grid2">
+    <div><canvas id="dial"></canvas>
+      <div class="controls"><label>Cosine similarity <span class="v" data-for="cos">0.80</span><input type="range" id="cos" min="0.3" max="1" step="0.01" value="0.8"></label></div></div>
+    <table class="t" id="cosrules"></table>
+  </div>
+  <h3>Real values from fusion logs (office_0)</h3>
+  <table class="t">
+    <tr><th>Pair</th><th>cos</th><th>What fusion did</th></tr>
+    <tr><td>track 87 vs map object #26 (same object, 15 detections)</td><td class="mono">0.967</td><td>merged</td></tr>
+    <tr><td>track 143 vs map object #33</td><td class="mono">0.933</td><td>merged</td></tr>
+    <tr><td>track 121 vs closest object #33</td><td class="mono">0.810</td><td>new object (no 3D overlap)</td></tr>
+    <tr><td>track 169 vs closest object #28</td><td class="mono">0.705</td><td>new object</td></tr>
+    <tr><td>a detection vs its own BoT-SORT track</td><td class="mono">0.501</td><td>track split: the tracker had moved the id to another object</td></tr>
+  </table>
+  <p class="muted">Indoor crops of different objects still sit around 0.56–0.91, which is why geometry (3D overlap) is always required as well.</p>
+
+  <div class="where"><b>In the code:</b> semantic_decoding/novic/crop_utils.py (<code>extract_crop</code>) ·
+    semantic_decoding/novic/novic_decoder.py (<code>embed_crops</code>) · object_fusion/streaming.py (<code>detect_frame</code>, embedding thread).
+    Config: <code>semantic_decoding.crop_mode</code>, <code>crop_padding_frac</code>, <code>embedding_batch_size</code>.</div>
+</main>
+<script src="common.js"></script>
+<script>
+  const img = document.getElementById("frame"), stage = document.getElementById("stage");
+  const IW = 640, IH = 363;
+  let box = [262, 150, 330, 230], padf = 0.15, mode = "bbox", drag = null;
+  const cc = document.getElementById("crop"); let cx = hidpi(cc, 300, 300);
+  function toImg(e) { const r = img.getBoundingClientRect(); return [ (e.clientX - r.left) / r.width * IW, (e.clientY - r.top) / r.height * IH ]; }
+  stage.addEventListener("mousedown", (e) => { drag = toImg(e); });
+  window.addEventListener("mousemove", (e) => { if (!drag) return; const p = toImg(e);
+    box = [Math.max(0, Math.min(drag[0], p[0])), Math.max(0, Math.min(drag[1], p[1])), Math.min(IW, Math.max(drag[0], p[0])), Math.min(IH, Math.max(drag[1], p[1]))]; draw(); });
+  window.addEventListener("mouseup", () => { drag = null; });
+  function padded() { const w = box[2] - box[0], h = box[3] - box[1];
+    return [Math.max(0, box[0] - padf * w), Math.max(0, box[1] - padf * h), Math.min(IW, box[2] + padf * w), Math.min(IH, box[3] + padf * h)]; }
+  function place(el, b) { el.style.left = `${b[0] / IW * 100}%`; el.style.top = `${b[1] / IH * 100}%`;
+    el.style.width = `${(b[2] - b[0]) / IW * 100}%`; el.style.height = `${(b[3] - b[1]) / IH * 100}%`; }
+  function draw() {
+    place(document.getElementById("box"), box); const p = padded(); place(document.getElementById("padbox"), p);
+    if (!img.complete) return;
+    cx.fillStyle = cssv("--surface-2"); cx.fillRect(0, 0, 300, 300);
+    const sw = p[2] - p[0], sh = p[3] - p[1]; if (sw < 2 || sh < 2) return;
+    const s = Math.min(300 / sw, 300 / sh), dw = sw * s, dh = sh * s, ox = (300 - dw) / 2, oy = (300 - dh) / 2;
+    const k = img.naturalWidth / IW;
+    cx.drawImage(img, p[0] * k, p[1] * k, sw * k, sh * k, ox, oy, dw, dh);
+    if (mode === "seg") {                                  // rough stand-in for a mask: an ellipse inside the box
+      cx.save(); cx.beginPath(); cx.rect(0, 0, 300, 300);
+      cx.ellipse(ox + ((box[0] + box[2]) / 2 - p[0]) * s, oy + ((box[1] + box[3]) / 2 - p[1]) * s, (box[2] - box[0]) / 2 * s, (box[3] - box[1]) / 2 * s, 0, 0, 7);
+      cx.fillStyle = "#000"; cx.fill("evenodd"); cx.restore();
+    }
+    document.getElementById("cropinfo").textContent =
+      `Box ${Math.round(box[2] - box[0])} × ${Math.round(box[3] - box[1])} px → crop ${Math.round(sw)} × ${Math.round(sh)} px → resized to 378 × 378 for CLIP` +
+      (mode === "seg" ? " (mask approximated by an ellipse here)" : "");
+  }
+  img.onload = draw;
+  slider("padf", (v) => { padf = v; draw(); }, (v) => v.toFixed(2))();
+  document.getElementById("mode").onchange = (e) => { mode = e.target.value; draw(); };
+
+  // ── cosine dial ──
+  const dc = document.getElementById("dial"); let d = hidpi(dc, 300, 220);
+  const RULES = [
+    [0.6, "Track split", "a detection below 0.6 to its own track starts a new track (track_split_cosine)"],
+    [0.75, "Merge allowed", "fusion never merges two objects below 0.75, however much they overlap (min_merge_cosine)"],
+    [0.75, "Fragment merge", "clean-up merges a fragment into its host only at ≥ 0.75 (fragment_embedding_similarity)"],
+    [0.9, "Same name group", "labels whose embeddings are ≥ 0.9 alike are merged in naming (merge_similarity_threshold)"],
+  ];
+  function drawDial(c) {
+    d.fillStyle = cssv("--surface"); d.fillRect(0, 0, 300, 220);
+    const ox = 150, oy = 190, R = 150, a = Math.acos(c);
+    d.strokeStyle = cssv("--line"); d.beginPath(); d.arc(ox, oy, R, Math.PI, 2 * Math.PI); d.stroke();
+    const vec = (ang, col, lab) => { d.strokeStyle = col; d.lineWidth = 3; d.beginPath(); d.moveTo(ox, oy);
+      d.lineTo(ox + R * Math.cos(-Math.PI / 2 - ang), oy + R * Math.sin(-Math.PI / 2 - ang)); d.stroke(); d.lineWidth = 1;
+      d.fillStyle = col; d.font = "12px system-ui"; d.fillText(lab, ox + (R + 4) * Math.cos(-Math.PI / 2 - ang) - 20, oy + (R + 4) * Math.sin(-Math.PI / 2 - ang) - 4); };
+    vec(a / 2, cssv("--accent"), "crop A"); vec(-a / 2, "#eb6834", "crop B");
+    d.fillStyle = cssv("--ink"); d.font = "600 13px system-ui"; d.fillText(`angle ${(a * 180 / Math.PI).toFixed(0)}° → cos ${c.toFixed(2)}`, 80, 212);
+    document.getElementById("cosrules").innerHTML = "<tr><th>Rule</th><th>At this cosine</th></tr>" + RULES.map(([th, n, txt]) =>
+      `<tr><td><b>${n}</b> (${th})<br><span class="muted">${txt}</span></td><td><span class="verdict ${c >= th ? "good" : "bad"}">${c >= th ? "passes" : "fails"}</span></td></tr>`).join("") +
+      `<tr><td><b>Commit score</b><br><span class="muted">0.3·overlap + 0.7·cos ≥ 0.55 needs overlap ≥ ${Math.max(0, (0.55 - 0.7 * c) / 0.3).toFixed(2)} at this cosine</span></td><td class="mono">${(0.7 * c).toFixed(3)} from cos</td></tr>`;
+  }
+  slider("cos", drawDial, (v) => v.toFixed(2))();
+  window.addEventListener("themechange", () => { draw(); drawDial(parseFloat(document.getElementById("cos").value)); });
+</script>
+</body>
+</html>

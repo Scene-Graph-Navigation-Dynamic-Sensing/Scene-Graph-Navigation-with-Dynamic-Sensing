@@ -1,0 +1,5 @@
+# Test 6: pixel ownership: a mask >= 80% inside a larger one is subtracted from it (voxels and crop); the removed
+# pixels are inpainted in the larger detection's crop.
+detection:
+  validation:
+    pixel_ownership: {enabled: true, containment: 0.8, min_owned_frac: 0.1, crop_fill: inpaint}

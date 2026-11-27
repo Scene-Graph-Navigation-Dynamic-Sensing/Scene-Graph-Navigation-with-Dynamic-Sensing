@@ -1,0 +1,4 @@
+# Keep objects seen in a single (sampled) frame: small objects such as plugs and switches
+# are often detected in only one of the every-10th frames.
+object_fusion:
+  obj_min_detections: 1

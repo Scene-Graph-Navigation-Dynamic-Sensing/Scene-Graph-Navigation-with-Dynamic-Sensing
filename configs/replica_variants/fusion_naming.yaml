@@ -1,0 +1,8 @@
+# Peel 2 px off each mask before lifting it into 3D (less bleed onto the wall
+# behind an object), keep objects seen in 2+ frames (every 10th frame is used,
+# so small objects appear in few), and keep names down to 0.10 confidence.
+object_fusion:
+  mask_erode_px: 2
+  obj_min_detections: 2
+label_mapper:
+  min_name_score: 0.10

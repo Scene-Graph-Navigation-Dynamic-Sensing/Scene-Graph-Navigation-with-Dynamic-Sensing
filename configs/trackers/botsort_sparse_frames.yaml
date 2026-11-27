@@ -1,0 +1,16 @@
+# BoT-SORT for sparsely sampled datasets (e.g. every 10th Replica frame), where
+# the camera moves a lot between processed frames and Ultralytics' defaults
+# (tuned for 30 fps video) end most tracks after a single frame.
+# Select with detection.tracker: "configs/trackers/botsort_sparse_frames.yaml".
+tracker_type: botsort
+track_high_thresh: 0.2     # default 0.25: keep slightly weaker detections in the first matching stage
+track_low_thresh: 0.05     # default 0.1
+new_track_thresh: 0.3      # default 0.25: a little stricter about starting new tracks
+track_buffer: 60           # default 30: remember lost tracks longer (frames)
+match_thresh: 0.9          # default 0.8: accept looser box overlap, objects shift further between frames
+fuse_score: True
+gmc_method: orb            # default sparseOptFlow; ORB features survive large inter-frame motion better
+proximity_thresh: 0.5
+appearance_thresh: 0.8
+with_reid: False
+model: auto

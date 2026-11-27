@@ -1,0 +1,5 @@
+# Test 4: structural-plane test at track commit: the track's voxels are one thin (< 3 cm), large (> 1.2 m),
+# horizontal or vertical slab -> rejected as floor / ceiling / wall.
+object_fusion:
+  track_validation:
+    structural_plane: {enabled: true, max_thickness_m: 0.03, min_extent_m: 1.2, axis_tol: 0.2}

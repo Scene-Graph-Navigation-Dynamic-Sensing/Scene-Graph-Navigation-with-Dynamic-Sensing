@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pipeline Overview</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  .lane { margin: 18px 0 6px; font: 700 12px system-ui; letter-spacing: .06em; color: var(--ink-3); text-transform: uppercase; }
+  .stage { display: grid; grid-template-columns: 70px 1fr 260px; gap: 12px; align-items: center; background: var(--surface);
+           border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; text-decoration: none; color: var(--ink);
+           transition: border-color .15s, transform .15s; }
+  .stage:hover { border-color: var(--accent); transform: translateX(3px); }
+  .stage .n { font: 700 13px var(--mono); color: var(--accent); }
+  .stage .t { font-weight: 650; }
+  .stage .d { color: var(--ink-2); font-size: 13.5px; }
+  .stage .m { font-size: 12.5px; }
+  .flow { color: var(--ink-3); font: 12px var(--mono); padding: 2px 0 2px 82px; }
+  @media (max-width: 760px) { .stage { grid-template-columns: 1fr; } .flow { padding-left: 8px; } }
+  #search { padding: 7px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); color: var(--ink); width: 280px; max-width: 100%; }
+</style>
+</head>
+<body>
+<main>
+  <span class="stage-tag">run_static_scene_graph.py</span>
+  <h1>How the scene graph pipeline works</h1>
+  <p class="lede">A walkthrough video goes in; a 3D map of named objects and how they rest on each other comes out.
+    Each stage below has its own page with an interactive demo, the real parameters, and where it lives in the code.
+    Click a stage to open it.</p>
+  <input id="search" placeholder="Filter stages (e.g. NOVIC, voxel, BoT-SORT)">
+
+  <div id="stages">
+    <div class="lane">Capture</div>
+    <a class="stage" href="01_capture.html"><span class="n">1–3</span>
+      <span><span class="t">Frames, depth and camera pose</span><br><span class="d">Resize each frame to 640 px, predict metric depth, track the camera pose, back-project pixels to 3D.</span></span>
+      <span class="model m">Depth Anything V3 metric · DROID-SLAM<br><span class="muted">or dataset depth / poses</span></span></a>
+    <div class="flow">↓ metric depth (m) + intrinsics K + camera-to-world poses</div>
+
+    <div class="lane">Map</div>
+    <a class="stage" href="02_map.html"><span class="n">4a · 4</span>
+      <span><span class="t">Gravity alignment and voxel map</span><br><span class="d">Find the floor plane and rotate the world so z is up; every depth pixel becomes a 1 cm coloured voxel.</span></span>
+      <span class="m muted">RANSAC planes · worker processes</span></a>
+    <div class="flow">↓ z-up poses, voxel index for every pixel</div>
+
+    <div class="lane">Streaming · detection, embedding and fusion run as parallel threads</div>
+    <a class="stage" href="03_detection.html"><span class="n">5 · 5a</span>
+      <span><span class="t">Detect, segment and track</span><br><span class="d">Prompt-free YOLOE finds every object mask; BoT-SORT gives each a persistent track id; optional checks drop group boxes and wall pieces.</span></span>
+      <span class="model m">YOLOE-26-seg-pf + BoT-SORT</span></a>
+    <div class="flow">↓ boxes · masks · track ids</div>
+    <a class="stage" href="04_embedding.html"><span class="n">5b</span>
+      <span><span class="t">Crop and embed</span><br><span class="d">A padded box crop of every detection becomes a 1024-d CLIP embedding — what "looks alike" means downstream.</span></span>
+      <span class="model m">NOVIC image embedder<br>CLIP DFN5B ViT-H-14</span></a>
+    <div class="flow">↓ one embedding per detection, mask → voxels</div>
+    <a class="stage" href="05_track_fusion.html"><span class="n">6</span>
+      <span><span class="t">Track accumulation and commit</span><br><span class="d">Detections of one track pile up; when the track ends it merges into the best-matching map object (0.3·overlap + 0.7·cosine ≥ 0.55) or becomes a new one.</span></span>
+      <span class="model m">NOVIC decoder names the object at track end</span></a>
+
+    <div class="lane">3D instances</div>
+    <a class="stage" href="06_final_fusion.html"><span class="n">6 · 6b</span>
+      <span><span class="t">Final fusion and clean-up</span><br><span class="d">At the end of the video: re-match, DBSCAN, overlap merge, voxel ownership; then drop floor slabs and merge fragments.</span></span>
+      <span class="m muted">DoVSG code, adapted</span></a>
+    <div class="flow">↓ fused 3D instances</div>
+    <a class="stage" href="07_naming.html"><span class="n">7</span>
+      <span><span class="t">Instance naming</span><br><span class="d">The track-end NOVIC name, pooled over synonyms, mapped to an everyday noun; low-confidence names become "unknown".</span></span>
+      <span class="model m">NOVIC decoder · label mapper</span></a>
+
+    <div class="lane">Scene graph</div>
+    <a class="stage" href="08_relations.html"><span class="n">9</span>
+      <span><span class="t">Spatial relations</span><br><span class="d">Footprint overlap and heights decide on / inside / belongs / next to; the result is a floor-rooted tree.</span></span>
+      <span class="m muted">DoVSG rules + contact checks</span></a>
+
+    <div class="lane">Query · separate scripts</div>
+    <a class="stage" href="09_query_update.html"><span class="n">→</span>
+      <span><span class="t">Task planning and scene update</span><br><span class="d">Ground a spoken command to a node and a goal position; update the saved graph from a new video of the same room.</span></span>
+      <span class="model m">Gemini 2.5 Flash + NOVIC text similarity</span></a>
+  </div>
+
+  <h2>What one object looks like at each step</h2>
+  <div class="card">
+    <table class="t">
+      <tr><th>Step</th><th>The office_0 bin (node wastebasket_1), as the pipeline holds it</th></tr>
+      <tr><td>Detection (5)</td><td>69 masks over the walkthrough, under 6 different BoT-SORT ids (3, 411, 513, 540, 682, 761): the tracker loses the bin each time it leaves the view</td></tr>
+      <tr><td>Embedding (5b)</td><td>69 vectors of 1024 numbers, one per padded crop</td></tr>
+      <tr><td>Track fusion (6)</td><td>Each track is committed when it ends; because they overlap in 3D and look alike, all six end up fused into one map object of 2,905 voxels (1 cm)</td></tr>
+      <tr><td>Track-end naming (6)</td><td>NOVIC decodes the averaged embedding → "recycling bin" 0.87 (beam: wastebin, wastebasket, waste container …)</td></tr>
+      <tr><td>Naming (7)</td><td>Pooled with its synonyms → confidence 0.98; everyday name → <b>wastebasket</b> (GT class: bin)</td></tr>
+      <tr><td>Relations (9)</td><td>Base within 15 cm of z = 0 → <b>on floor</b>; <b>next to</b> wastebasket_0 (gap 4 cm) and wastebasket_2 (7 cm)</td></tr>
+    </table>
+    <p class="muted">Values from results/replica_final/office_0 (scene graph .pkl and scene_graph.json).</p>
+  </div>
+</main>
+<script src="common.js"></script>
+<script>
+  document.getElementById("search").addEventListener("input", (e) => {
+    const q = e.target.value.toLowerCase();
+    document.querySelectorAll("#stages .stage").forEach((s) => {
+      const hit = !q || s.textContent.toLowerCase().includes(q);
+      s.style.display = hit ? "" : "none";
+      const f = s.nextElementSibling;
+      if (f && f.classList.contains("flow")) f.style.display = hit ? "" : "none";
+    });
+  });
+</script>
+</body>
+</html>

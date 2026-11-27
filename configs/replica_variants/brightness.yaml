@@ -1,0 +1,8 @@
+# Lift dark frames (HSV V mean < 0.40) towards 0.50 with a gamma curve before
+# YOLOE and NOVIC see them. Bright frames are left alone. See perception/image_enhance.py.
+detection:
+  enhance:
+    method: gamma
+    target_mean: 0.50
+    only_if_below: 0.40
+    max_gamma: 2.5

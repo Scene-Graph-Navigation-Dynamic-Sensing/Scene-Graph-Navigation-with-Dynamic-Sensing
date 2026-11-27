@@ -1,0 +1,4 @@
+# Thing/stuff probe trained WITHOUT office_1 and room_1 (scripts/train_stuff_probe.py --folds) + non-Replica data
+object_fusion:
+  track_validation:
+    stuff_probe: {enabled: true, path: configs/stuff_probe/heldout_office_1_room_1.npz, threshold: 0.7238}

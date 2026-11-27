@@ -1,0 +1,4 @@
+# Larger prompt-free YOLOE and a lower confidence floor, for more (and smaller) proposals.
+detection:
+  weights: "/home/ravindu/SceneGraphNav/models/checkpoints/yoloe-26l-seg-pf.pt"
+  conf_thresh: 0.15

@@ -1,0 +1,13 @@
+# Object discovery first: find as many objects as possible, naming comes later.
+#  - YOLOE-26x prompt-free at confidence 0.10 and 1024 px input: best detector recall on
+#    office_0 (29/31 objects seen at least once, results/detector_recall/office_0/report.json)
+#  - objects seen in 2+ frames are kept
+#  - an object NOVIC can't name confidently is kept as "unknown" instead of being deleted
+detection:
+  weights: "/home/ravindu/SceneGraphNav/external/Scene-Graph-Generation/yoloe-26x-seg-pf.pt"
+  conf_thresh: 0.10
+  img_size: 1024
+object_fusion:
+  obj_min_detections: 2
+label_mapper:
+  low_score_action: "unknown"

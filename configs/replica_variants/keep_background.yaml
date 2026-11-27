@@ -1,0 +1,6 @@
+# Keep large floor-level instances (floor, rugs) instead of dropping them in
+# favour of the graph's synthetic floor root. ConceptGraphs-Detector keeps
+# wall/floor/ceiling as background objects, which its exclude-1 segmentation
+# score depends on.
+object_fusion:
+  drop_structural_instances: false

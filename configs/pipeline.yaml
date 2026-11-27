@@ -1,0 +1,305 @@
+# Static Open-Vocabulary Scene Graph Pipeline Configuration
+# =============================================================
+# DroidCam RGB walkthrough -> Mask2Former panoptic (segment) -> NOVIC (tag)
+# -> DoVSG-style multi-view 3D fusion -> static scene graph.
+# See docs/pipeline_design.md for the full design this config implements.
+
+# ─── External repo paths (reused code / vendored weights, not copied) ───
+external:
+  scene_graph_generation_root: "/home/ravindu/SceneGraphNav/external/Scene-Graph-Generation"
+  droid_slam_dir: "/home/ravindu/SceneGraphNav/external/Scene-Graph-Generation/DROID-SLAM"
+  droid_slam_module_dir: "/home/ravindu/SceneGraphNav/external/Scene-Graph-Generation/DROID-SLAM/droid_slam"
+  dovsg_pose_estimation_script: "/home/ravindu/SceneGraphNav/external/Scene-Graph-Generation/dovsg/scripts/pose_estimation.py"
+  dovsg_cpu_pose_estimation_script: "/home/ravindu/SceneGraphNav/external/Scene-Graph-Generation/dovsg/scripts/cpu_pose_estimation.py"
+  droid_slam_checkpoint: "/home/ravindu/SceneGraphNav/external/Scene-Graph-Generation/DROID-SLAM/droid.pth"
+
+# ─── Video source (perception/frame_source.py) ───
+source:
+  # One of:
+  #   DroidCam stream   "http://192.168.8.144:4747/video"
+  #   webcam index      "0"
+  #   video file        "data/raw/my_walkthrough.mp4"
+  #   dataset folder    "data/raw/<name>"   (layout: data/raw/README.md)
+  # --source on the command line overrides this.
+  uri: "http://192.168.8.144:4747/video"
+  capture_interval: 0.3       # streams only: seconds between captured frames
+  stride: 2                   # video files / dataset folders: keep every Nth frame -- 2 halves frame count for a
+                              # quicker fusion test; NOTE for droid_slam pose specifically: this doubles the
+                              # rotation between consecutive processed frames, which risks losing SLAM tracking
+                              # on fast pans (needs <5 deg, see data/raw/README.md) -- set back to 1 if pose
+                              # estimation looks off
+  max_frames: 300             # 0 = no limit
+  target_width: 640           # frames are resized to this width; height keeps aspect
+  depth_scale: 1000.0         # dataset reference depth PNGs: raw value / depth_scale = metres
+                              # (camera.yaml's depth_scale overrides this per dataset)
+
+# ─── Camera intrinsics, used when the source has no camera.yaml ───
+# fx/fy/cx/cy are for a width x height image; they are rescaled to the
+# processed resolution automatically. DA3 metric depth is proportional to fx,
+# so a wrong focal length gives a proportionally wrong map scale — calibrate
+# the phone (e.g. OpenCV checkerboard) instead of trusting these defaults.
+camera:
+  fx: 525.0
+  fy: 525.0
+  cx: 320.0
+  cy: 240.0
+  width: 640
+  height: 480
+
+# ─── Depth Estimation (perception/depth_estimation) ───
+depth:
+  backend: "depth_anything_v3"
+  # DA3METRIC-* is metric once scaled by focal/300 (done in the estimator).
+  # DA3-BASE/LARGE are relative-only and are rejected by the pipeline.
+  model_id: "depth-anything/DA3METRIC-LARGE"
+  fallback_model_id: "depth-anything/Depth-Anything-V2-Metric-Indoor-Small-hf"
+  # none   = trust the metric model (the only option for a live stream)
+  # global = one sequence-wide scale from median(reference)/median(predicted)
+  #          over align_sample_frames frames; needs a dataset with depth/
+  align: "none"
+  align_sample_frames: 10
+  min_valid_depth_m: 0.1
+  max_valid_depth_m: 10.0
+  device: "cuda"
+
+# ─── Pose Estimation (perception/pose_estimation) ───
+# DROID-SLAM needs its CUDA extensions built for the scene_graph env's
+# Python 3.10 (see docs/full_pipeline.md). It tracks by optical flow, so
+# consecutive frames must overlap heavily: pan slowly, and for sparse
+# keyframe datasets (e.g. 3RScan) prefer ground-truth poses via --dataset_dir.
+pose:
+  backend: "droid_slam"          # "droid_slam" or "cpu_icp" (geometry-only Open3D fallback)
+  stride: 1                      # must stay 1: the voxel map needs a pose for every frame
+  weights: "droid.pth"           # resolved against external.droid_slam_checkpoint
+
+# ─── Detection + Segmentation (perception/detection) — no class list ───
+# backend "panoptic" (default, perception/detection/panoptic_detector.py): Mask2Former Swin-L ADE20K panoptic
+# segments are the masks, so no two detections overlap (no group boxes, no table-plus-laptop nesting) and
+# wall / floor / ceiling arrive as stuff and are dropped.
+# DEFAULT (2026-11-27): Mask2Former ONLY (panoptic.yoloe_union.enabled: false). On the 8 Replica scenes, 2 runs
+# (results/option2_panoptic, report: evaluation/reports/mask2former_frontend/) it gave the highest object precision
+# (86.2% vs 73.5% with the YOLOE union and 59.8% for YOLOE alone), the fewest non-object nodes (16.5 vs 42.5 / 98.5)
+# and duplicates (10 vs 30.5 / 44.5), the best naming and embedding scores, and was the fastest (61 min for 8
+# scenes vs 89.6 / 301.6). Trade-off: lower recall (47.3% vs 57.9% / 60.9%); it never finds wall plugs, switches,
+# vents or panels (ADE20K has no class for them).
+# To recover those small fixtures set panoptic.yoloe_union.enabled: true (Mask2Former + YOLOE, the previous
+# default: F1 0.647, recall 57.9%), e.g. with --override configs/replica_variants/panoptic_yoloe_union.yaml.
+# backend "yoloe_seg_pf": prompt-free YOLOE alone (weights / conf_thresh / img_size / mask_box_filter below).
+detection:
+  backend: "panoptic"
+  panoptic:
+    model: "facebook/mask2former-swin-large-ade-panoptic"
+    threshold: 0.5
+    # YOLOE masks <= max_area_frac of the frame that lie <= max_thing_overlap on a panoptic thing are added
+    yoloe_union:
+      enabled: false   # Mask2Former only (default); true = add YOLOE small-object masks
+      weights: "/home/ravindu/SceneGraphNav/external/Scene-Graph-Generation/yoloe-26x-seg-pf.pt"
+      conf_thresh: 0.10
+      img_size: 1024
+      max_area_frac: 0.02
+      max_thing_overlap: 0.5
+  # Checks on YOLOE masks (perception/detection/detection_validation.py); with backend "panoptic" they apply to
+  # the yoloe_union masks only. border_stuff: covers >= min_area_frac of the frame and touches >= min_borders
+  # image borders; label_stuff: YOLOE's class is a surface / place (wall, floor, room, ...); group_test: a mask
+  # holding >= min_children smaller detections that cover >= child_coverage of it, or split into large blobs.
+  validation:
+    border_stuff: {enabled: true, min_borders: 2, min_area_frac: 0.15}
+    label_stuff: {enabled: true}
+    group_test: {enabled: true, min_children: 2, child_coverage: 0.6, fragment_min_frac: 0.15, containment: 0.85}
+  weights: "/home/ravindu/SceneGraphNav/models/checkpoints/yoloe-26s-seg-pf.pt"
+  conf_thresh: 0.25
+  iou_thresh: 0.5
+  img_size: 640
+  device: "cuda"
+  # BoT-SORT gives each detection a persistent track id (dtd_pipeline's scheme).
+  # The image encoder then runs once per track instead of once per detection,
+  # and NOVIC nouns are accumulated per track as votes.
+  use_tracking: true
+  tracker: "botsort.yaml"        # or "bytetrack.yaml"
+  # Ultralytics reads numpy frames as BGR; true converts the pipeline's RGB frames first. Runs before 2026-10-14
+  # had this bug (YOLOE saw red/blue swapped); false reproduces them.
+  fix_channel_order: true
+  # Mask-box alignment, before tracking and CLIP (tracked detector only); off by default.
+  # mask_box_filter drops group / area detections: mask fills < min_fill of a box covering > min_box_frac
+  # of the image (results/mask_box_fill/summary.md). tighten_box_to_mask shrinks each box to its mask.
+  mask_box_filter:
+    enabled: false
+    min_fill: 0.5
+    min_box_frac: 0.2
+  tighten_box_to_mask: false
+
+# ─── Semantic Decoding: NOVIC (semantic_decoding/novic) ───
+# NOVIC embeds images with its own built-in embedder (no separate CLIP module
+# needed) and decodes an open-vocabulary noun via beam search. Checkpoint below
+# is trained on openclip:apple/DFN5B-CLIP-ViT-H-14-378 — the top-ranked
+# embedder in NOVIC's own benchmark (novic/config/train.yaml), confirmed via
+# A/B test on real crops to beat the older ViT-B-16-SigLIP checkpoint (e.g.
+# correctly tags a mouse as "computer mouse" 0.92 instead of "mouse button"
+# 0.71 or "crease" 0.05) — falls back to a stub decoder only if it can't load.
+semantic_decoding:
+  novic_dir: "/home/ravindu/SceneGraphNav/external/novic"
+  novic_checkpoint: "/home/ravindu/SceneGraphNav/external/novic/outputs/ovod_20240628_142131/ovod_chunk0433_20240630_235415.train"
+  gencfg: "beam_k10_vnone_gp_t1_a0"
+  guide_targets: null        # null = decode across the full trained vocabulary, unconstrained
+  crop_mode: "bbox"          # "bbox" (plain padded box crop, default — keeps real background context
+                              #   NOVIC's embedder expects; "segmented" mask-zeroing to black was
+                              #   confirmed to cause confident-but-wrong tags, e.g. "conch" 0.82 for
+                              #   desk clutter) or "segmented" (mask-zeroed crop)
+  crop_padding_px: 15
+  # dtd_pipeline pads by a fraction of the box instead of a fixed pixel count
+  # (clip_encoder.py: pad_frac=0.15), so context scales with the object.
+  # Set to null to use crop_padding_px instead.
+  crop_padding_frac: 0.15
+  device: "cuda"
+
+# ─── Label Mapper (semantic_decoding/label_mapper) ───
+label_mapper:
+  merge_similarity_threshold: 0.9   # merge near-duplicate labels within a scene
+  # name confidence = the top label's beam score plus its synonyms' in the beam
+  # (text cosine >= synonym_similarity); real objects on IMG_6100 scored >= 0.25,
+  # guesses <= 0.11
+  min_name_score: 0.15
+  synonym_similarity: 0.8
+  # A NOVIC label not in this list (e.g. "billfold", "office furniture") is replaced
+  # by the listed name that best matches the object's image, nudged towards
+  # NOVIC's own word by everyday_name_weight. null keeps NOVIC's labels as-is.
+  everyday_names_file: "configs/vocab/indoor_objects.txt"
+  everyday_name_weight: 0.2
+  low_score_action: "drop"          # "drop" removes the instance; "unknown" keeps it unnamed with its top-k guesses
+
+# ─── Object Fusion (object_fusion) — spatial + visual only, no text classes ───
+object_fusion:
+  voxel_resolution: 0.01
+  sim_threshold: 0.55
+  vis_weight: 0.7                   # spatial_weight + vis_weight + text_weight must sum to 1.0
+  spatial_weight: 0.3
+  text_weight: 0.0                  # no text similarity in this pipeline (must stay 0.0)
+  obj_min_detections: 3
+  downsample_voxel_size: 0.01
+  # ── cleanup of fusion artefacts, before naming (object_fusion/postprocess.py) ──
+  # Prompt-free YOLOE segments the floor as readily as furniture, and the graph
+  # already has its own floor root, so large flat instances at floor height are
+  # dropped rather than competing with it.
+  drop_structural_instances: true
+  structural_min_area_m2: 1.0
+  structural_max_thickness_m: 0.2
+  structural_floor_band_m: 0.25
+  # A large, flat instance at furniture height is a table or desk top. NOVIC
+  # names it after the clutter standing on it (IMG_6100's desk decoded as
+  # "laptop"), so it takes the first surface noun in its beam instead.
+  relabel_support_surfaces: true
+  support_surface_min_area_m2: 0.8
+  support_surface_top_range_m: [0.3, 1.3]
+  support_surface_min_slab_fraction: 0.5   # share of points in its densest 10 cm horizontal slab
+  # One object can fuse into several instances when views barely overlap.
+  # Merge the smaller into the larger when fragment_containment of its points
+  # lie within fragment_point_distance_m of the larger one's points, their
+  # embeddings agree, and they don't both carry a confident, different
+  # track-end name. The containment test used to be on bounding boxes, with a
+  # 0.55 embedding threshold: on IMG_6100 that merged a laptop, bottle,
+  # backpack, monitor, wallet and box into one "mac", since a large object's
+  # box contains everything standing on it and indoor crops sit at 0.56-0.91
+  # cosine. The scene-graph hang that 0.55 was once set to avoid is now
+  # prevented by the relation builder itself (see graph_builder.py).
+  merge_fragments: true
+  fragment_containment: 0.5
+  fragment_point_distance_m: 0.05
+  fragment_embedding_similarity: 0.75
+  fragment_conflict_min_score: 0.3   # a track-end name at or above this counts as confident
+  # Thing/stuff probe at track commit (object_fusion/instance_fusion.py): logistic regression on the track's
+  # averaged embedding; a track with p(stuff) > threshold is rejected as wall / floor / ceiling. This one is
+  # trained on all 8 Replica scenes + 3RScan (threshold: <= 2% of training things rejected); Replica evaluations
+  # use the held-out probes in configs/stuff_probe/ (configs/replica_variants/probe_heldout_*.yaml) instead.
+  track_validation:
+    stuff_probe: {enabled: true, path: configs/stuff_probe/all_replica_3rscan.npz, threshold: 0.7233}
+
+# ─── Scene Graph Builder (scene_graph/builder) ───
+# Mirrors dovsg.memory.scene_graph.scene_graph_processer.SceneGraphProcesser's
+# constructor kwargs; alpha_shape_overleaf_rate_threshold is DoVSG's actual
+# (misspelled upstream) parameter name — kept as-is so it maps 1:1.
+scene_graph:
+  # Rotate the world so the dominant horizontal plane is z-up and the lowest
+  # surface is z=0 before building the map. The relation builder assumes this
+  # frame; without it "on" is judged along the camera's viewing axis.
+  gravity_align: true
+  resolution: 0.01
+  neighbour_num: 5
+  stand_floor_threshold: 0.15
+  alphashape_alpha: 1.0
+  alpha_shape_overleaf_rate_threshold: 0.1
+  part_intersection_rate_threshold: 0.2
+  inside_threshold: 0.95
+  # "A on B" also needs B's top within support_max_gap_m below, or
+  # support_max_penetration_m above, A's lowest point
+  support_max_gap_m: 0.10
+  support_max_penetration_m: 0.15
+  # "next to" (lateral edge): same parent, footprint gap <= next_to_max_gap_m,
+  # height ranges overlapping by >= next_to_min_vertical_overlap of the shorter
+  next_to_max_gap_m: 0.30
+  next_to_min_vertical_overlap: 0.5
+  # Instances NOVIC names with one of these become "belongs" (part-of) children
+  # of the object they sit on, instead of "on" children. null = DoVSG's default
+  # list. Only these nouns can ever produce a "belongs" relation.
+  part_level_classes: ["handle", "drawer", "door", "knob", "button", "lid", "cover", "wheel",
+                       "cushion", "armrest", "backrest", "leg", "shelf", "faucet", "tap"]
+  # Upstream's support-resolution loop deadlocks when two objects each resolve
+  # to the other as their support (a mouse and a keyboard at the same height).
+  # After this many unresolved lookups of the same object, the dependent one is
+  # attached to the floor instead, which drains the loop. Measured on a real
+  # scan: 360s (watchdog + flat fallback) -> 28s with full relations.
+  cycle_patience: 50
+  # "dovsg"    = the published DoVSG algorithm (scene_graph/builder/dovsg_relations.py):
+  #              footprint overlap + strictly-lower base. Cannot deadlock.
+  # "upstream" = whatever the vendored Scene-Graph-Generation checkout currently
+  #              implements, including local edits to it.
+  relation_method: "dovsg"
+
+# ─── Task Planning (task_planning) — Gemini-based command grounding ───
+# Grounds a human command against an already-saved scene graph (see
+# scripts/run_task_planning.py). Falls back to a deterministic stub response
+# if gemini_api_key is empty or the client fails to init, so the rest of
+# task_planning stays testable without a real key.
+task_planning:
+  gemini_api_key: ""   # leave empty: read from $GEMINI_API_KEY or code/.env (git-ignored)
+  model: "gemini-2.5-flash"
+
+# ─── Navigation (navigation/) — occupancy grid + A* over the persisted voxel map ───
+# Ported from Scene-Graph-Generation/dovsg/navigation/ (vendored into
+# navigation/core/, not imported live -- see navigation/planner.py's module
+# docstring). Stops at producing a waypoint path; no robot/ROS execution.
+navigation:
+  # -- occupancy grid construction (navigation/core/occupancy.py) --
+  resolution: 0.05          # metres per grid cell for the 2D occupancy map / A* search
+  min_height: 0.2           # metres above floor (z=0, gravity-aligned frame) to start counting occupied points
+  max_height: 1.4           # metres above floor to stop counting occupied points (min_height + robot height)
+  occ_threshold: 100        # min point count in a cell for it to be marked occupied
+  conservative: false       # if true, cells with zero observed points are also treated as occupied
+                             # (safer near unmapped/unexplored regions, but can block valid free space)
+
+  # -- path planning (navigation/core/astar.py, path_facade.py) --
+  occ_avoid_radius: 0.4     # metres; robot-radius inflation applied to occupied cells before A* search
+  heuristic: "euclidean"    # one of: manhattan | euclidean | octile | chebyshev
+
+  # -- output / visualization --
+  pointcloud_visualization: false   # if true, opens an interactive Open3D window (needs a display;
+                                     # leave false for headless entc runs) -- the 2D matplotlib
+                                     # navigation_vis.jpg is always produced regardless of this flag
+  output_dir: "outputs/navigation_plans"
+
+  # -- start position placeholder (navigation/start_position.py) --
+  # No robot localization exists anywhere in this repo yet. start_xyz must be
+  # passed explicitly (--start_xyz) or falls back to the last captured
+  # frame's pose (--recorder_dir) -- a placeholder, not real tracking.
+  start_xyz_fallback: "last_pose"   # last_pose | world_origin
+
+# ─── Outputs ───
+outputs:
+  data_processed_dir: "data/processed"
+  scene_graphs_dir: "outputs/scene_graphs"
+  visualizations_dir: "outputs/visualizations"
+  logs_dir: "outputs/logs"
+
+device: "cuda"
+
+# Two runs of the same input should give the same map (scripts/run_static_scene_graph.py: seeds, cuDNN deterministic).
+deterministic: true

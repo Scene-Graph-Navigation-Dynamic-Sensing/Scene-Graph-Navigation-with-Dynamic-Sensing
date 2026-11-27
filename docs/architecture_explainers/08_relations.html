@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spatial Relations</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  #rel { cursor: grab; touch-action: none; }
+  .tree { font: 13.5px/1.7 var(--mono); white-space: pre; background: var(--surface-2); border-radius: 8px; padding: 12px 14px; overflow-x: auto; }
+</style>
+</head>
+<body>
+<main>
+  <span class="stage-tag">stage 9 · scene_graph/builder/dovsg_relations.py</span>
+  <h1>Spatial relations</h1>
+  <p class="lede">The scene graph is a tree rooted at the floor. Each object gets exactly one parent — what it rests on, sits in or is
+    part of — decided from 3D geometry alone, in the gravity-aligned world (z up, floor at z = 0). "Next to" is added as a side link.</p>
+
+  <div class="grid2">
+    <div class="card"><h3>on</h3><p>B supports A when A's ground footprint (alpha shape) overlaps B's by more than <b>10%</b> of A's,
+      B's lowest point is below A's, and they touch: B's top (95th pct.) is within <b>10 cm below</b> or <b>15 cm above</b> A's base (5th pct.),
+      or A's base is within 10 cm above B's base (a cup standing inside a box). Nearest wins. Base within <b>15 cm</b> of the floor → on floor.</p></div>
+    <div class="card"><h3>inside</h3><p>After the tree is built: ≥ <b>95%</b> of the child's points inside the parent's 3D convex hull,
+      and the child's base more than 15 cm below the parent's top (a mouse lying on a desk is "on", not "inside").</p></div>
+    <div class="card"><h3>belongs</h3><p>Only for part nouns (handle, drawer, door, knob, button, lid, cover, wheel, cushion, armrest,
+      backrest, leg, shelf, faucet, tap): attached to the object sharing the most points within 10 cm.</p></div>
+    <div class="card"><h3>next to</h3><p>Same parent, footprints at most <b>30 cm</b> apart and overlapping ≤ 10%, height ranges overlapping
+      ≥ <b>50%</b> of the shorter one. A side link; the tree keeps one parent per object.</p></div>
+  </div>
+
+  <h2>Try it: drag the objects</h2>
+  <p>A side view (horizontal = footprint along one axis, vertical = height). Drag boxes to move them; drag a box's right edge to resize.
+    The tree on the right is recomputed with the rules above. <span class="muted">Footprints are 1D intervals here; the pipeline uses 2D alpha shapes.</span></p>
+  <div class="controls"><button class="btn" id="reset">Reset scene</button>
+    <button class="btn" id="cupbox">Example: cup inside a box on a table</button><button class="btn" id="float">Example: lamp floating above a shelf</button></div>
+  <div class="grid2">
+    <canvas id="rel"></canvas>
+    <div><div class="tree" id="tree"></div><table class="t" id="why" style="margin-top:10px"></table></div>
+  </div>
+
+  <h2>A real result (office_0)</h2>
+  <div class="tree">floor
+├─ on: wastebasket_1   next to wastebasket_0 (4 cm), wastebasket_2 (7 cm)
+├─ on: sofa_0 (GT: a wall piece named sofa)
+│   └─ on: ball_0
+└─ …</div>
+  <p class="muted">From results/replica_final/office_0/scene_graph/scene_graph.json. A non-object node (a wall piece) still gets a place in
+    the tree and can "carry" objects, which is why removing non-objects early matters for the graph too.</p>
+
+  <div class="where"><b>In the code:</b> scene_graph/builder/dovsg_relations.py (<code>build_scene_graph_dovsg</code>, <code>_find_support</code>,
+    <code>compute_next_to</code>) · config <code>scene_graph.*</code>: stand_floor_threshold 0.15, alpha_shape_overleaf_rate_threshold 0.1,
+    support_max_gap_m 0.10, support_max_penetration_m 0.15, inside_threshold 0.95, next_to_max_gap_m 0.30, next_to_min_vertical_overlap 0.5.
+    Output: outputs/scene_graphs/&lt;scene&gt;.json / .pkl.</div>
+</main>
+<script src="common.js"></script>
+<script>
+  const RW = 520, RH = 360, S = 160, OX = 20, OY = RH - 30;   // 160 px per metre, floor line at OY
+  const rc = document.getElementById("rel"); let r = hidpi(rc, RW, RH);
+  const BASE = () => [
+    { n: "table", x: 0.4, w: 1.2, z0: 0.0, z1: 0.75, part: false },
+    { n: "laptop", x: 0.6, w: 0.35, z0: 0.75, z1: 0.78, part: false },
+    { n: "mug", x: 1.15, w: 0.09, z0: 0.76, z1: 0.86, part: false },
+    { n: "drawer", x: 1.2, w: 0.35, z0: 0.45, z1: 0.62, part: true },
+    { n: "chair", x: 1.75, w: 0.5, z0: 0.0, z1: 0.9, part: false },
+    { n: "bin", x: 2.4, w: 0.3, z0: 0.0, z1: 0.35, part: false },
+  ];
+  let O = BASE();
+  const ov = (a, b) => Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x));
+  function build() {
+    const parent = {}, rel = {}, why = {};
+    const objs = O.filter((o) => !o.part).sort((a, b) => a.z0 - b.z0);
+    for (const a of objs) {
+      if (a.z0 < 0.15) { parent[a.n] = "floor"; rel[a.n] = "on"; why[a.n] = `base ${a.z0.toFixed(2)} m < 0.15 m → floor`; continue; }
+      let best = null, bd = 1e9, beneath = false;
+      for (const b of objs) {
+        if (b === a || ov(a, b) / a.w <= 0.1 || b.z0 >= a.z0) continue;
+        beneath = true;
+        const onTop = b.z1 - a.z0, onBottom = a.z0 - b.z0, d = [];
+        if (onTop >= -0.10 && onTop <= 0.15) d.push(Math.abs(onTop));
+        if (onBottom >= 0 && onBottom <= 0.10) d.push(onBottom);
+        if (d.length && Math.min(...d) < bd) { bd = Math.min(...d); best = b; }
+      }
+      if (best) { parent[a.n] = best.n; rel[a.n] = "on"; why[a.n] = `${Math.round(ov(a, best) / a.w * 100)}% footprint over ${best.n}; ${best.n}'s top ${best.z1.toFixed(2)} vs base ${a.z0.toFixed(2)} m`; }
+      else if (beneath) { parent[a.n] = "floor"; rel[a.n] = "(support unknown)"; why[a.n] = "objects lie beneath but none touches it (gap > 10 cm)"; }
+      else { parent[a.n] = "floor"; rel[a.n] = "on"; why[a.n] = "nothing beneath it → on floor (unseen legs)"; }
+    }
+    for (const a of objs) {                                    // inside
+      const p = O.find((o) => o.n === parent[a.n]); if (!p) continue;
+      const within = a.x >= p.x && a.x + a.w <= p.x + p.w && a.z0 >= p.z0 && a.z1 <= p.z1;
+      if (within && a.z0 < p.z1 - 0.15) { rel[a.n] = "inside"; why[a.n] += " · fully within its hull, base > 15 cm below its top → inside"; }
+    }
+    for (const a of O.filter((o) => o.part)) {                // belongs: most contact within 10 cm
+      let best = null, bs = 0;
+      for (const b of objs) { const near = ov({ x: a.x - 0.1, w: a.w + 0.2 }, b) * (Math.min(a.z1, b.z1 + 0.1) - Math.max(a.z0, b.z0 - 0.1) > 0 ? 1 : 0);
+        if (near > bs) { bs = near; best = b; } }
+      parent[a.n] = best ? best.n : "(skipped)"; rel[a.n] = "belongs"; why[a.n] = best ? `part noun; touches ${best.n} most` : "part noun with no parent → skipped";
+    }
+    const next = [];                                           // next to
+    for (let i = 0; i < objs.length; i++) for (let j = i + 1; j < objs.length; j++) {
+      const a = objs[i], b = objs[j]; if (parent[a.n] !== parent[b.n]) continue;
+      const gap = Math.max(0, Math.max(a.x, b.x) - Math.min(a.x + a.w, b.x + b.w));
+      const vo = Math.max(0, Math.min(a.z1, b.z1) - Math.max(a.z0, b.z0)) / Math.min(a.z1 - a.z0, b.z1 - b.z0);
+      if (gap <= 0.30 && ov(a, b) / Math.min(a.w, b.w) <= 0.1 && vo >= 0.5) next.push(`${a.n} ↔ ${b.n} (${Math.round(gap * 100)} cm)`);
+    }
+    return { parent, rel, why, next };
+  }
+  function draw() {
+    r.fillStyle = cssv("--surface"); r.fillRect(0, 0, RW, RH);
+    r.strokeStyle = cssv("--ink-3"); r.beginPath(); r.moveTo(0, OY); r.lineTo(RW, OY); r.stroke();
+    r.setLineDash([3, 4]); r.strokeStyle = cssv("--line"); r.beginPath(); r.moveTo(0, OY - 0.15 * S); r.lineTo(RW, OY - 0.15 * S); r.stroke(); r.setLineDash([]);
+    r.fillStyle = cssv("--ink-3"); r.font = "11px system-ui"; r.fillText("floor (z = 0)", 6, OY + 14); r.fillText("0.15 m", 6, OY - 0.15 * S - 4);
+    const { parent, rel, why, next } = build();
+    for (const o of O) {
+      const x = OX + o.x * S, y = OY - o.z1 * S, w = o.w * S, h = Math.max(3, (o.z1 - o.z0) * S);
+      r.fillStyle = o.part ? cssv("--warn-soft") : cssv("--accent-soft"); r.strokeStyle = o.part ? cssv("--warn") : cssv("--accent");
+      r.fillRect(x, y, w, h); r.strokeRect(x, y, w, h); r.fillRect(x + w - 4, y, 4, h);
+      r.fillStyle = cssv("--ink"); r.font = "12px system-ui"; r.fillText(o.n, x + 3, y - 4);
+    }
+    // tree text
+    const kids = {}; for (const [c, p] of Object.entries(parent)) (kids[p] = kids[p] || []).push(c);
+    const lines = ["floor"];
+    (function walk(n, pre) { const ks = kids[n] || []; ks.forEach((k, i) => { const last = i === ks.length - 1;
+      lines.push(`${pre}${last ? "└─" : "├─"} ${rel[k]}: ${k}`); walk(k, pre + (last ? "   " : "│  ")); }); })("floor", "");
+    if (next.length) lines.push("", "next to: " + next.join(", "));
+    document.getElementById("tree").textContent = lines.join("\n");
+    document.getElementById("why").innerHTML = "<tr><th>Object</th><th>Why</th></tr>" + Object.entries(why).map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join("");
+  }
+  // dragging
+  let drag = null;
+  const pos = (e) => { const b = rc.getBoundingClientRect(); return [(e.clientX - b.left) / b.width * RW, (e.clientY - b.top) / b.height * RH]; };
+  rc.addEventListener("pointerdown", (e) => { const [px, py] = pos(e);
+    for (const o of [...O].reverse()) { const x = OX + o.x * S, y = OY - o.z1 * S, w = o.w * S, h = Math.max(3, (o.z1 - o.z0) * S);
+      if (px >= x - 2 && px <= x + w + 2 && py >= y - 4 && py <= y + h + 4) { drag = { o, px, py, x: o.x, z0: o.z0, z1: o.z1, w: o.w, resize: px > x + w - 8 }; rc.setPointerCapture(e.pointerId); break; } } });
+  rc.addEventListener("pointermove", (e) => { if (!drag) return; const [px, py] = pos(e); const dx = (px - drag.px) / S, dz = -(py - drag.py) / S;
+    if (drag.resize) drag.o.w = Math.max(0.05, drag.w + dx);
+    else { drag.o.x = drag.x + dx; const h = drag.z1 - drag.z0; drag.o.z0 = Math.max(0, drag.z0 + dz); drag.o.z1 = drag.o.z0 + h; }
+    draw(); });
+  rc.addEventListener("pointerup", () => { drag = null; });
+  document.getElementById("reset").onclick = () => { O = BASE(); draw(); };
+  document.getElementById("cupbox").onclick = () => { O = [{ n: "table", x: 0.4, w: 1.4, z0: 0, z1: 0.75, part: false }, { n: "box", x: 0.8, w: 0.6, z0: 0.75, z1: 1.1, part: false }, { n: "cup", x: 0.95, w: 0.12, z0: 0.78, z1: 0.9, part: false }]; draw(); };
+  document.getElementById("float").onclick = () => { O = [{ n: "shelf", x: 0.6, w: 0.9, z0: 0, z1: 0.8, part: false }, { n: "lamp", x: 0.8, w: 0.25, z0: 1.05, z1: 1.5, part: false }]; draw(); };
+  draw(); window.addEventListener("themechange", draw);
+</script>
+</body>
+</html>

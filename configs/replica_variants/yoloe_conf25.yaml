@@ -1,0 +1,4 @@
+# YOLOE confidence floor 0.25 (the pipeline default) instead of the discovery stack's 0.10: drops low-confidence
+# detections as well. Combined with yoloe_labels.yaml for the option 3 confidence variant.
+detection:
+  conf_thresh: 0.25

@@ -1,0 +1,8 @@
+# Mask-box alignment before tracking and CLIP: drop group / area detections (mask fills < 50% of a box
+# covering > 20% of the image) and tighten every box to its mask. Threshold from results/mask_box_fill/.
+detection:
+  mask_box_filter:
+    enabled: true
+    min_fill: 0.5
+    min_box_frac: 0.2
+  tighten_box_to_mask: true

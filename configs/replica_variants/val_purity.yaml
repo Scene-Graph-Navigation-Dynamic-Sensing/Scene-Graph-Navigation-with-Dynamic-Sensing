@@ -1,0 +1,4 @@
+# Test 7: purity-weighted embeddings: each view weighted by the share of its box not covered by other detections.
+detection:
+  validation:
+    purity_weighting: {enabled: true, floor: 0.1}

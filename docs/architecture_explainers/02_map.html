@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gravity Alignment and Voxel Map</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <span class="stage-tag">stages 4a · 4</span>
+  <h1>Gravity alignment and the voxel map</h1>
+  <p class="lede">SLAM gives poses in the first camera's frame, where "down" is wherever the camera happened to point.
+    The relation rules later ask "is A above B?", so the world is first rotated until z points up and the floor sits at z = 0.
+    Then every depth pixel of every frame is dropped into a 1 cm voxel grid.</p>
+
+  <h2>4a · Gravity alignment, step by step</h2>
+  <p>A side view of a room as SLAM sees it: floor, a wall and a table top, all tilted by the camera's average pitch.
+    Step through what <code>estimate_gravity_alignment()</code> does.</p>
+  <div class="controls">
+    <label>Camera pitch when filming <span class="v" data-for="tilt">0°</span><input type="range" id="tilt" min="-40" max="40" value="25"></label>
+    <button class="btn" id="prev">◀ Back</button><button class="btn primary" id="next">Next step ▶</button>
+    <span id="stepname" class="pill"></span>
+  </div>
+  <canvas id="ga"></canvas>
+  <p id="stepinfo" style="min-height:3.2em"></p>
+  <div class="legend"><span><i style="background:#8a8983"></i>points</span><span><i style="background:#2a78d6"></i>up prior (mean camera −y)</span>
+    <span><i style="background:#1f8a52"></i>chosen plane normal</span><span><i style="background:#c9402f"></i>rejected plane (wall: &gt; 45° from prior)</span></div>
+
+  <div class="card" style="margin-top:16px">
+    <div class="kv">
+      <div>Up prior</div><div>mean of every camera's −y axis in world coordinates</div>
+      <div>Planes tried</div><div>5 RANSAC planes (3 cm voxels, 3 cm distance, 1000 iterations)</div>
+      <div>Accept a plane if</div><div>normal within 45° of the prior; the one with most inliers wins (floor or table top)</div>
+      <div>Floor height</div><div>1st percentile of the rotated cloud's z → shifted to z = 0</div>
+      <div>Fallback</div><div>no plane qualifies → the camera prior alone</div>
+    </div>
+  </div>
+
+  <h2>4 · The voxel map</h2>
+  <p>Each back-projected pixel is snapped to a voxel: <code>index = floor(point / resolution)</code>. A voxel keeps a colour,
+    and every pixel of every frame remembers which voxel it landed in (<code>pixel_index_mappings</code>). That lookup is what
+    lets a 2D mask become a set of 3D voxels in one step during fusion.</p>
+  <div class="controls">
+    <label>Voxel size <span class="v" data-for="res">1 cm</span><input type="range" id="res" min="1" max="10" value="2"></label>
+    <label>Depth noise <span class="v" data-for="noise">0 cm</span><input type="range" id="noise" min="0" max="5" value="0"></label>
+  </div>
+  <div class="grid2">
+    <canvas id="vox"></canvas>
+    <div>
+      <table class="t" id="voxstats"></table>
+      <p class="muted" style="margin-top:10px">A 2D slice through a chair-sized object (60 × 90 cm) seen from three views.
+        Small voxels keep thin parts (legs, handles) but cost memory; noisy depth smears a surface across several voxels.
+        The pipeline uses <b>1 cm</b> (<code>object_fusion.voxel_resolution: 0.01</code>).</p>
+    </div>
+  </div>
+
+  <div class="where"><b>In the code:</b> scene_graph/builder/gravity_alignment.py (<code>estimate_gravity_alignment</code>,
+    <code>gravity_align_dataset</code>) · voxel map built in a worker process (<code>load_view_dataset_for_transfer</code>) while
+    detection already runs — scripts/run_static_scene_graph.py "Stage 4". Output: data/processed/&lt;scene&gt;/gravity_alignment.json.</div>
+</main>
+<script src="common.js"></script>
+<script>
+  // ── gravity alignment demo (2D side view: x horizontal, y up) ──
+  const ga = document.getElementById("ga");
+  const W = 720, H = 330;
+  let g = hidpi(ga, W, H);
+  let tilt = 25, step = 0;
+  const STEPS = [
+    ["SLAM frame", "As reconstructed: the floor, a wall and a table top, rotated by the camera's average pitch. Nothing says which way is up."],
+    ["Up prior", "Average each camera's −y axis (\"up\" in the image) in world coordinates. A hand-held camera is roughly upright, but this is off by the pitch: the camera looked down at the table."],
+    ["RANSAC planes", "Fit the biggest planes one after another (removing each plane's points): here the floor, the wall and the table top."],
+    ["Pick a horizontal plane", "Keep planes whose normal is within 45° of the prior. The wall (≈ 90° away) is rejected; the largest remaining plane (the floor) gives the true up direction."],
+    ["Rotate and shift", "Rotate that normal onto +z, then shift so the 1st percentile of height is z = 0. Now \"on\" and \"above\" mean what they should."],
+  ];
+  function rng(seed) { return () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }; }
+  function scene() {                                     // points in the aligned frame (metres)
+    const r = rng(7), pts = [];
+    for (let i = 0; i < 220; i++) pts.push({ x: -2 + 4.2 * r(), y: (r() - 0.5) * 0.02, s: "floor" });
+    for (let i = 0; i < 110; i++) pts.push({ x: 2.2 + (r() - 0.5) * 0.02, y: 2.4 * r(), s: "wall" });
+    for (let i = 0; i < 60; i++) pts.push({ x: -0.6 + 1.2 * r(), y: 0.75 + (r() - 0.5) * 0.02, s: "table" });
+    for (let i = 0; i < 30; i++) pts.push({ x: -0.55 + (r() < 0.5 ? 0 : 1.1) + (r() - 0.5) * 0.03, y: 0.75 * r(), s: "leg" });
+    return pts;
+  }
+  const PTS = scene();
+  const rot = (p, a) => ({ x: p.x * Math.cos(a) - p.y * Math.sin(a), y: p.x * Math.sin(a) + p.y * Math.cos(a), s: p.s });
+  function drawGA() {
+    const a = tilt * Math.PI / 180;
+    const aligned = step >= 4;
+    const pts = PTS.map((p) => aligned ? p : rot({ x: p.x, y: p.y - 0.4 }, a));
+    g.fillStyle = cssv("--surface"); g.fillRect(0, 0, W, H);
+    const X = (x) => W / 2 + x * 120, Y = (y) => H - 50 - y * 100;
+    if (aligned) { g.strokeStyle = cssv("--line"); g.setLineDash([4, 4]); g.beginPath(); g.moveTo(0, Y(0)); g.lineTo(W, Y(0)); g.stroke(); g.setLineDash([]);
+      g.fillStyle = cssv("--ink-3"); g.font = "11px system-ui"; g.fillText("z = 0", 6, Y(0) - 4); }
+    for (const p of pts) {
+      let c = cssv("--ink-3");
+      if (step >= 2 && !aligned) c = p.s === "wall" ? (step >= 3 ? cssv("--bad") : "#b48ad6") : p.s === "floor" ? (step >= 3 ? cssv("--good") : "#5aa0e8") : p.s === "table" ? "#e0a743" : c;
+      g.fillStyle = c; g.beginPath(); g.arc(X(p.x), Y(p.y), 2.2, 0, 7); g.fill();
+    }
+    const arrow = (x0, y0, dx, dy, col, label) => {
+      g.strokeStyle = col; g.fillStyle = col; g.lineWidth = 2.5; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x0 + dx, y0 + dy); g.stroke();
+      const ang = Math.atan2(dy, dx); g.beginPath(); g.moveTo(x0 + dx, y0 + dy);
+      g.lineTo(x0 + dx - 9 * Math.cos(ang - 0.4), y0 + dy - 9 * Math.sin(ang - 0.4)); g.lineTo(x0 + dx - 9 * Math.cos(ang + 0.4), y0 + dy - 9 * Math.sin(ang + 0.4)); g.fill();
+      g.font = "12px system-ui"; g.fillText(label, x0 + dx + 6, y0 + dy); g.lineWidth = 1;
+    };
+    const cx = 90, cy = 90;
+    if (!aligned && step >= 1) {                         // prior: true up rotated, plus the pitch error
+      const pa = a + (tilt * 0.55) * Math.PI / 180;
+      arrow(cx, cy, -Math.sin(pa) * 60, -Math.cos(pa) * 60, cssv("--accent"), "prior");
+    }
+    if (!aligned && step >= 3) arrow(cx, cy, -Math.sin(a) * 70, -Math.cos(a) * 70, cssv("--good"), "floor normal");
+    if (!aligned && step >= 3) arrow(cx + 40, cy + 120, Math.cos(a) * 50, -Math.sin(a) * 50 * -1, cssv("--bad"), "wall normal ✗");
+    if (aligned) arrow(cx, cy, 0, -70, cssv("--good"), "+z (up)");
+    document.getElementById("stepname").textContent = `Step ${step + 1}/5 · ${STEPS[step][0]}`;
+    document.getElementById("stepinfo").textContent = STEPS[step][1];
+  }
+  document.getElementById("next").onclick = () => { step = Math.min(4, step + 1); drawGA(); };
+  document.getElementById("prev").onclick = () => { step = Math.max(0, step - 1); drawGA(); };
+  slider("tilt", (v) => { tilt = v; drawGA(); }, (v) => `${v}°`)();
+
+  // ── voxel demo ──
+  const vc = document.getElementById("vox");
+  const VW = 420, VH = 360;
+  let vx = hidpi(vc, VW, VH);
+  let res = 2, noise = 0;
+  function shape() {                                      // chair outline in cm: seat, back, two legs
+    const segs = [[[-30, 45], [30, 45]], [[25, 45], [25, 90]], [[-28, 45], [-28, 0]], [[25, 45], [25, 0]]];
+    const pts = []; const r = rng(3);
+    for (let view = 0; view < 3; view++) for (const [[x0, y0], [x1, y1]] of segs) {
+      const n = Math.hypot(x1 - x0, y1 - y0) * 1.2;
+      for (let i = 0; i < n; i++) { const t = i / n; pts.push([x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, r(), r(), view]); }
+    }
+    return pts;
+  }
+  const CH = shape();
+  function drawVox() {
+    vx.fillStyle = cssv("--surface"); vx.fillRect(0, 0, VW, VH);
+    const S = 3.4, ox = VW / 2, oy = VH - 30;
+    const occ = new Map();
+    for (const [x, y, n1, n2, view] of CH) {
+      const px = x + (n1 - 0.5) * 2 * noise, py = y + (n2 - 0.5) * 2 * noise;
+      const key = `${Math.floor(px / res)},${Math.floor(py / res)}`;
+      occ.set(key, (occ.get(key) || 0) + 1);
+    }
+    vx.fillStyle = cssv("--accent-soft"); vx.strokeStyle = cssv("--accent");
+    for (const k of occ.keys()) {
+      const [i, j] = k.split(",").map(Number);
+      vx.fillRect(ox + i * res * S, oy - (j + 1) * res * S, res * S, res * S);
+      if (res >= 3) vx.strokeRect(ox + i * res * S, oy - (j + 1) * res * S, res * S, res * S);
+    }
+    vx.fillStyle = cssv("--ink");
+    for (const [x, y, n1, n2] of CH) {
+      const px = x + (n1 - 0.5) * 2 * noise, py = y + (n2 - 0.5) * 2 * noise;
+      vx.fillRect(ox + px * S - 0.6, oy - py * S - 0.6, 1.2, 1.2);
+    }
+    const area = 60 * 90;
+    document.getElementById("voxstats").innerHTML =
+      `<tr><td>Points (3 views)</td><td class="mono">${CH.length}</td></tr>` +
+      `<tr><td>Occupied voxels (this slice)</td><td class="mono">${occ.size}</td></tr>` +
+      `<tr><td>Points per voxel</td><td class="mono">${(CH.length / occ.size).toFixed(1)}</td></tr>` +
+      `<tr><td>Voxels in a 1 m³ cube at this size</td><td class="mono">${(1e6 / res ** 3).toLocaleString()}</td></tr>`;
+  }
+  slider("res", (v) => { res = v; drawVox(); }, (v) => `${v} cm`)();
+  slider("noise", (v) => { noise = v; drawVox(); }, (v) => `±${v} cm`)();
+  window.addEventListener("themechange", () => { drawGA(); drawVox(); });
+</script>
+</body>
+</html>
